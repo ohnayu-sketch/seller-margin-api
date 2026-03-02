@@ -1,8 +1,0 @@
-# Render.com 배포용 (설계서: main.py → GitHub push → Render 자동 배포)
-# 환경변수 NAVER_CLIENT_ID, NAVER_CLIENT_SECRET 은 Render 대시보드에서 설정
-services:
-  - type: web
-    name: seller-margin-api-Georgia
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT

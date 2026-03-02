@@ -2,3 +2,25 @@
 .env
 backend/.env
 *.gsheet
+key/
+
+# 백엔드 및 앱스 스크립트 (별도 관리 영역)
+backend/
+apps-script/
+scripts/
+
+# 문서 및 로컬 백업 / 지시서 (웹 배포 불필요)
+backup_dashboard/
+docs/
+test/
+작업지시/
+자료조사/
+업데이트_기록/
+SYSTEM_DESIGN/
+*.md
+!README.md
+
+# 기타 설정 파일
+.cursor/
+.cursorrules
+업데이트_자동화.bat
