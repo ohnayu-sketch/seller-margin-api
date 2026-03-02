@@ -2110,11 +2110,15 @@ function isAllowed(email) {
   const ADMIN_EMAILS = ['ohnayu@gmail.com', 'ohhhjs90@gmail.com'];
   if (ADMIN_EMAILS.includes(email.toLowerCase())) return true;
 
-  if (ALLOWED_EMAILS.length === 0) return true; // 이메일 미설정 시 일단 허용
-  if (ALLOWED_EMAILS.includes(email.toLowerCase())) return true;
+  const email1 = localStorage.getItem('allowed-email-1');
+  const email2 = localStorage.getItem('allowed-email-2');
+  if (email1 && email1.toLowerCase() === email.toLowerCase()) return true;
+  if (email2 && email2.toLowerCase() === email.toLowerCase()) return true;
 
   const invitedEmail = localStorage.getItem('invited-email');
   if (invitedEmail && invitedEmail === email.toLowerCase()) return true;
+
+  if (!email1 && !email2) return true; // 이메일 미설정 시 일단 허용
 
   return false;
 }
