@@ -5,10 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <script>
   window.onerror = function(msg, url, lineNo, columnNo, error) {
-    const d = document.createElement('div');
-    d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:white;z-index:999999;padding:20px;font-size:16px;font-weight:bold;line-height:1.5;word-break:break-all;text-align:left;';
-    d.innerHTML = '🔥 치명적 오류 발생:<br>' + msg + '<br>줄: ' + lineNo + ':' + columnNo + '<br>' + (error && error.stack ? '<pre>'+error.stack+'</pre>' : '');
-    document.documentElement.appendChild(d);
+    console.error('Fatal Error:', msg, 'at', lineNo + ':' + columnNo, error);
+    try {
+      const loader = document.getElementById('loading');
+      if (loader) loader.classList.remove('show');
+    } catch(e) {}
+
+    const d = document.getElementById('fatal-error-overlay');
+    if (d) {
+      d.style.display = 'flex';
+      const msgEl = document.getElementById('fatal-error-msg');
+      if (msgEl) msgEl.innerHTML = '🔥 치명적 오류 발생:<br>' + msg + '<br>줄: ' + lineNo + ':' + columnNo + '<br>' + (error && error.stack ? '<pre style="font-size:10px;margin-top:10px;white-space:pre-wrap;text-align:left;max-height:200px;overflow:auto;">'+error.stack+'</pre>' : '');
+    } else {
+      const div = document.createElement('div');
+      div.id = 'fatal-error-overlay';
+      div.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);color:white;z-index:999999;padding:20px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;';
+      div.innerHTML = '<div style="background:#161920;border:1px solid #f87171;padding:20px;border-radius:12px;max-width:90%;box-shadow:0 10px 30px rgba(0,0,0,0.5);"><h2 style="color:#f87171;margin-bottom:10px">시스템 오류</h2><div id="fatal-error-msg" style="font-size:14px;word-break:break-all;">' + msg + ' (' + lineNo + ':' + columnNo + ')</div><div style="margin-top:20px;display:flex;gap:10px;justify-content:center;"><button onclick="location.reload();" style="padding:10px 15px;background:#38bdf8;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">단순 새로고침</button><button onclick="localStorage.clear();sessionStorage.clear();location.reload();" style="padding:10px 15px;background:#f87171;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">캐시 초기화 후 새로고침</button></div></div>';
+      document.body.appendChild(div);
+    }
     return false;
   };
 </script>
@@ -1957,38 +1971,49 @@ let googleUser = null;
 
 // ==================== INIT ====================
 window.addEventListener('DOMContentLoaded', () => {
-  var search = window.location.search || '';
+  console.log('[Init] DOMContentLoaded - Starting Auth Check');
+  try {
+    var search = window.location.search || '';
 
-  if (search.indexOf('invite=') !== -1) {
-    const urlParams = new URLSearchParams(search);
-    const inviteEmail = urlParams.get('invite');
-    if (inviteEmail) {
-      localStorage.setItem('invited-email', inviteEmail.toLowerCase());
-      window.history.replaceState({}, document.title, window.location.pathname);
+    if (search.indexOf('invite=') !== -1) {
+      const urlParams = new URLSearchParams(search);
+      const inviteEmail = urlParams.get('invite');
+      if (inviteEmail) {
+        console.log('[Init] Invite link detected:', inviteEmail);
+        localStorage.setItem('invited-email', inviteEmail.toLowerCase());
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     }
-  }
 
-  if (search.indexOf('skip_auth=1') !== -1) {
-    onAuthSuccess('bypass@local', '우회');
-    return;
-  }
-  var hash = (window.location.hash || '').replace(/^#/, '');
-  if (hash.indexOf('id_token=') !== -1 || hash.indexOf('error=') !== -1) {
-    if (typeof processGoogleUserFromHash === 'function') processGoogleUserFromHash();
-    return;
-  }
-  var savedEmail = sessionStorage.getItem('auth-email') || localStorage.getItem('auth-email');
-  var savedName = sessionStorage.getItem('auth-name') || localStorage.getItem('auth-name');
-  if (savedEmail && savedName) {
-    onAuthSuccess(savedEmail, savedName);
-  } else {
-    showLoginScreen();
-    if (search.indexOf('oauth_debug=1') !== -1 && typeof _oauthDebug === 'function') {
-      var redirectUri = window.location.origin + window.location.pathname + (search || '');
-      _oauthDebug('리디렉션 URI (구글 콘솔에 이 주소 추가):', { redirect_uri: redirectUri });
-      var hint = document.getElementById('login-redirect-uri-hint');
-          if (hint) { hint.style.display = 'block'; hint.innerHTML = '아래를 그대로 구글 콘솔 → 승인된 리디렉션 URI에 추가하세요:<br><code style="font-size:11px">' + redirectUri + '</code>'; }
+    if (search.indexOf('skip_auth=1') !== -1) {
+      console.log('[Init] Skip Auth detected');
+      onAuthSuccess('bypass@local', '우회');
+      return;
     }
+    var hash = (window.location.hash || '').replace(/^#/, '');
+    if (hash.indexOf('id_token=') !== -1 || hash.indexOf('error=') !== -1) {
+      console.log('[Init] OAuth Redirect detected');
+      if (typeof processGoogleUserFromHash === 'function') processGoogleUserFromHash();
+      return;
+    }
+    var savedEmail = sessionStorage.getItem('auth-email') || localStorage.getItem('auth-email');
+    var savedName = sessionStorage.getItem('auth-name') || localStorage.getItem('auth-name');
+    if (savedEmail && savedName) {
+      console.log('[Init] Auto-login from storage:', savedEmail);
+      onAuthSuccess(savedEmail, savedName);
+    } else {
+      console.log('[Init] No saved session, showing login screen');
+      showLoginScreen();
+      if (search.indexOf('oauth_debug=1') !== -1 && typeof _oauthDebug === 'function') {
+        var redirectUri = window.location.origin + window.location.pathname + (search || '');
+        _oauthDebug('리디렉션 URI (구글 콘솔에 이 주소 추가):', { redirect_uri: redirectUri });
+        var hint = document.getElementById('login-redirect-uri-hint');
+            if (hint) { hint.style.display = 'block'; hint.innerHTML = '아래를 그대로 구글 콘솔 → 승인된 리디렉션 URI에 추가하세요:<br><code style="font-size:11px">' + redirectUri + '</code>'; }
+      }
+    }
+  } catch (err) {
+    console.error('[Init] Fatal Error in DOMContentLoaded:', err);
+    window.onerror(err.message, window.location.href, 0, 0, err);
   }
 });
 
@@ -2117,16 +2142,18 @@ function processGoogleUser(email, name) {
 }
 
 function isAllowed(email) {
+  if (!email) return false;
+  const targetEmail = email.toLowerCase().trim();
   const ADMIN_EMAILS = ['ohnayu@gmail.com', 'ohhhjs90@gmail.com'];
-  if (ADMIN_EMAILS.includes(email.toLowerCase())) return true;
+  if (ADMIN_EMAILS.includes(targetEmail)) return true;
 
-  const email1 = localStorage.getItem('allowed-email-1');
-  const email2 = localStorage.getItem('allowed-email-2');
-  if (email1 && email1.toLowerCase() === email.toLowerCase()) return true;
-  if (email2 && email2.toLowerCase() === email.toLowerCase()) return true;
+  const email1 = (localStorage.getItem('allowed-email-1') || '').toLowerCase().trim();
+  const email2 = (localStorage.getItem('allowed-email-2') || '').toLowerCase().trim();
+  if (email1 && email1 === targetEmail) return true;
+  if (email2 && email2 === targetEmail) return true;
 
-  const invitedEmail = localStorage.getItem('invited-email');
-  if (invitedEmail && invitedEmail === email.toLowerCase()) return true;
+  const invitedEmail = (localStorage.getItem('invited-email') || '').toLowerCase().trim();
+  if (invitedEmail && invitedEmail === targetEmail) return true;
 
   if (!email1 && !email2) return true; // 이메일 미설정 시 일단 허용
 
@@ -2134,30 +2161,48 @@ function isAllowed(email) {
 }
 
 function onAuthSuccess(email, name) {
-  document.getElementById('login-screen').classList.add('hidden');
-  document.getElementById('access-denied').classList.remove('show');
-  document.getElementById('app-wrapper').style.display = 'block';
+  console.log('[Auth] onAuthSuccess started for:', email);
+  try {
+    const loginScreen = document.getElementById('login-screen');
+    const accessDenied = document.getElementById('access-denied');
+    const appWrapper = document.getElementById('app-wrapper');
 
-  // 남편/아내 자동 판단
-  const email1 = localStorage.getItem('allowed-email-1') || '';
-  window.currentUser = email.toLowerCase() === email1.toLowerCase() ? '남편' : '아내';
-  const badgeEl = document.getElementById('user-badge');
-  if (badgeEl) badgeEl.textContent = window.currentUser === '남편' ? '👨 ' + window.currentUser : '👩 ' + window.currentUser;
-  const displayEl = document.getElementById('current-user-display');
-  if (displayEl) displayEl.textContent = `${window.currentUser} (${email})`;
-  const savedUrl = localStorage.getItem('script-url');
-  if (savedUrl) {
-    document.getElementById('script-url-input').value = savedUrl;
-    loadProducts();
-  } else {
-    setSyncStatus('error', 'URL 미설정');
+    if (loginScreen) loginScreen.classList.add('hidden');
+    if (accessDenied) accessDenied.classList.remove('show');
+    if (appWrapper) appWrapper.style.display = 'block';
+
+    // 남편/아내 자동 판단
+    const email1 = (localStorage.getItem('allowed-email-1') || '').trim();
+    window.currentUser = (email && email1 && email.toLowerCase() === email1.toLowerCase()) ? '남편' : '아내';
+
+    const badgeEl = document.getElementById('user-badge');
+    if (badgeEl) badgeEl.textContent = window.currentUser === '남편' ? '👨 ' + window.currentUser : '👩 ' + window.currentUser;
+    const displayEl = document.getElementById('current-user-display');
+    if (displayEl) displayEl.textContent = `${window.currentUser} (${email})`;
+
+    const savedUrl = localStorage.getItem('script-url');
+    if (savedUrl) {
+      const urlInput = document.getElementById('script-url-input');
+      if (urlInput) urlInput.value = savedUrl;
+      console.log('[Auth] Loading products...');
+      loadProducts();
+    } else {
+      setSyncStatus('error', 'URL 미설정');
+    }
+
+    const savedApiUrl = getBackendUrl();
+    const be = document.getElementById('api-backendUrl');
+    if (be && savedApiUrl) be.value = savedApiUrl;
+
+    console.log('[Auth] Rendering history & recalcing...');
+    renderHistory();
+    recalcMargin();
+    if (typeof loadVendors === 'function') loadVendors();
+    console.log('[Auth] onAuthSuccess completed.');
+  } catch (err) {
+    console.error('[Auth] Error in onAuthSuccess:', err);
+    window.onerror(err.message, window.location.href, 0, 0, err);
   }
-  const savedApiUrl = getBackendUrl();
-  const be = document.getElementById('api-backendUrl');
-  if (be && savedApiUrl) be.value = savedApiUrl;
-  renderHistory();
-  recalcMargin();
-  if (typeof loadVendors === 'function') loadVendors();
 }
 
 function signOut() {
