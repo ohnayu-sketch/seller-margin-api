@@ -2130,9 +2130,11 @@ function onAuthSuccess(email, name) {
 
   // 남편/아내 자동 판단
   const email1 = localStorage.getItem('allowed-email-1') || '';
-  currentUser = email.toLowerCase() === email1.toLowerCase() ? '남편' : '아내';
-  document.getElementById('user-badge').textContent = currentUser === '남편' ? '👨 ' + currentUser : '👩 ' + currentUser;
-  document.getElementById('current-user-display').textContent = `${currentUser} (${email})`;
+  window.currentUser = email.toLowerCase() === email1.toLowerCase() ? '남편' : '아내';
+  const badgeEl = document.getElementById('user-badge');
+  if (badgeEl) badgeEl.textContent = window.currentUser === '남편' ? '👨 ' + window.currentUser : '👩 ' + window.currentUser;
+  const displayEl = document.getElementById('current-user-display');
+  if (displayEl) displayEl.textContent = `${window.currentUser} (${email})`;
   const savedUrl = localStorage.getItem('script-url');
   if (savedUrl) {
     document.getElementById('script-url-input').value = savedUrl;
