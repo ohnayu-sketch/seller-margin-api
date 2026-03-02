@@ -2195,8 +2195,14 @@ function onAuthSuccess(email, name) {
     if (be && savedApiUrl) be.value = savedApiUrl;
 
     console.log('[Auth] Rendering history & recalcing...');
-    renderHistory();
-    recalcMargin();
+    // 앱 화면 구성 그리기
+    if (typeof showTab === 'function') {
+      showTab('calc');
+    } else {
+      renderHistory();
+      recalcMargin();
+    }
+
     if (typeof loadVendors === 'function') loadVendors();
     console.log('[Auth] onAuthSuccess completed.');
   } catch (err) {
