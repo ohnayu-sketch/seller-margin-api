@@ -4,27 +4,31 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <script>
-  window.onerror = function(msg, url, lineNo, columnNo, error) {
-    console.error('Fatal Error:', msg, 'at', lineNo + ':' + columnNo, error);
-    try {
-      const loader = document.getElementById('loading');
-      if (loader) loader.classList.remove('show');
-    } catch(e) {}
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      console.error('Fatal Error:', msg, 'at', lineNo + ':' + columnNo, error);
+      try {
+        const loader = document.getElementById('loading');
+        if (loader) loader.style.display = 'none';
+        const rescue = document.getElementById('rescue-ui');
+        if (rescue) rescue.style.display = 'flex';
+      } catch(e) {}
 
-    const d = document.getElementById('fatal-error-overlay');
-    if (d) {
-      d.style.display = 'flex';
-      const msgEl = document.getElementById('fatal-error-msg');
-      if (msgEl) msgEl.innerHTML = '🔥 치명적 오류 발생:<br>' + msg + '<br>줄: ' + lineNo + ':' + columnNo + '<br>' + (error && error.stack ? '<pre style="font-size:10px;margin-top:10px;white-space:pre-wrap;text-align:left;max-height:200px;overflow:auto;">'+error.stack+'</pre>' : '');
-    } else {
-      const div = document.createElement('div');
-      div.id = 'fatal-error-overlay';
-      div.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);color:white;z-index:999999;padding:20px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;';
-      div.innerHTML = '<div style="background:#161920;border:1px solid #f87171;padding:20px;border-radius:12px;max-width:90%;box-shadow:0 10px 30px rgba(0,0,0,0.5);"><h2 style="color:#f87171;margin-bottom:10px">시스템 오류</h2><div id="fatal-error-msg" style="font-size:14px;word-break:break-all;">' + msg + ' (' + lineNo + ':' + columnNo + ')</div><div style="margin-top:20px;display:flex;gap:10px;justify-content:center;"><button onclick="location.reload();" style="padding:10px 15px;background:#38bdf8;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">단순 새로고침</button><button onclick="localStorage.clear();sessionStorage.clear();location.reload();" style="padding:10px 15px;background:#f87171;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">캐시 초기화 후 새로고침</button></div></div>';
-      document.body.appendChild(div);
-    }
-    return false;
-  };
+      const d = document.getElementById('fatal-error-overlay');
+      if (d) {
+        d.style.display = 'flex';
+        const msgEl = document.getElementById('fatal-error-msg');
+        if (msgEl) msgEl.innerHTML = '🔥 치명적 오류 발생:<br>' + (msg||'알 수 없는 에러') + '<br>줄: ' + lineNo + ':' + columnNo + '<br>' + (error && error.stack ? '<pre style="font-size:10px;margin-top:10px;white-space:pre-wrap;text-align:left;max-height:150px;overflow:auto;">'+error.stack+'</pre>' : '');
+      }
+      return false;
+    };
+    // Rescue Timer: 5초 내에 appReady가 안되면 강제 팝업
+    window._rescueTimer = setTimeout(() => {
+      if (!window.appReady) {
+        console.warn('[Rescue] Initializing too slow or crashed. Showing Rescue UI.');
+        const rescue = document.getElementById('rescue-ui');
+        if (rescue) rescue.style.display = 'flex';
+      }
+    }, 5000);
 </script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -503,21 +507,6 @@
       <div id="login-redirect-uri-hint" style="margin-top:10px;font-size:11px;color:var(--text-muted);word-break:break-all;display:none"></div>
     </div>
   </div>
-<script>
-// ---------- 구글 OAuth 디버그: ?oauth_debug=1 이면 콘솔 + 화면에 단계 로그 ----------
-window._oauthDebug = function(msg, data) {
-  if ((window.location.search || '').indexOf('oauth_debug=1') === -1) return;
-  var line = '[OAuth] ' + msg + (data ? ' ' + JSON.stringify(data) : '');
-  try { console.log(line); } catch(e) {}
-  var el = document.getElementById('login-redirect-uri-hint');
-  if (el) { el.style.display = 'block'; el.textContent = (el.textContent ? el.textContent + '\n' : '') + line; }
-};
-</script>
-
-<!-- 접근 거부 화면 -->
-<div class="access-denied" id="access-denied">
-  <div class="denied-card">
-    <div class="denied-icon">🚫</div>
 </div><!-- end login-screen -->
 
 <!-- === ACCESS DENIED SCREEN === -->
@@ -535,6 +524,17 @@ window._oauthDebug = function(msg, data) {
       <button onclick="location.reload()" style="padding:12px 20px; background:var(--surface2); color:white; border:1px solid var(--border); border-radius:8px; font-weight:700; cursor:pointer; width:100%;">다시 시도</button>
       <button onclick="signOut()" style="padding:12px 20px; background:var(--danger); color:white; border:none; border-radius:8px; font-weight:700; cursor:pointer; width:100%;">다른 계정 로그인</button>
     </div>
+  </div>
+</div>
+
+<!-- === RESCUE UI (자동 복구) === -->
+<div id="rescue-ui" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:10000; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center;">
+  <div style="background:#1a1d24; border:1px solid #38bdf8; padding:30px 20px; border-radius:12px; max-width:400px; width:100%;">
+    <div style="font-size:32px; margin-bottom:10px;">⚡</div>
+    <h2 style="color:#38bdf8; margin-bottom:15px; font-weight:900;">시스템 자가 복구</h2>
+    <p style="color:white; font-size:13px; margin-bottom:20px; line-height:1.6;">페이지 초기화가 지연되거나 중단되었습니다.<br>데이터 초기화 후 다시 시작하시겠습니까?</p>
+    <button onclick="localStorage.clear();sessionStorage.clear();location.reload();" style="padding:14px; background:#38bdf8; color:black; border:none; border-radius:8px; font-weight:700; cursor:pointer; width:100%;">캐시 초기화 후 재시작</button>
+    <button onclick="document.getElementById('rescue-ui').style.display='none';" style="margin-top:12px; background:transparent; border:none; color:var(--text-muted); font-size:12px; cursor:pointer;">무시하고 기다리기</button>
   </div>
 </div>
 
@@ -2013,7 +2013,12 @@ window.addEventListener('DOMContentLoaded', () => {
     var savedName = sessionStorage.getItem('auth-name') || localStorage.getItem('auth-name');
     if (savedEmail && savedName) {
       console.log('[Init] Auto-login from storage:', savedEmail);
-      onAuthSuccess(savedEmail, savedName);
+      if (typeof isAllowed === 'function' && isAllowed(savedEmail)) {
+        onAuthSuccess(savedEmail, savedName);
+      } else {
+        console.warn('[Init] Saved session is not allowed or invalid:', savedEmail);
+        showLoginScreen();
+      }
     } else {
       console.log('[Init] No saved session, showing login screen');
       showLoginScreen();
@@ -2215,6 +2220,9 @@ function onAuthSuccess(email, name) {
       renderHistory();
       recalcMargin();
     }
+
+    window.appReady = true;  // [Rescue] 준비 완료 플래그
+    if (window._rescueTimer) clearTimeout(window._rescueTimer);
 
     if (typeof loadVendors === 'function') loadVendors();
     console.log('[Auth] onAuthSuccess completed.');
