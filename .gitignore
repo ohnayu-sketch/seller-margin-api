@@ -1,0 +1,4 @@
+# API 키 등 비밀 정보 (절대 커밋하지 마세요)
+.env
+backend/.env
+*.gsheet

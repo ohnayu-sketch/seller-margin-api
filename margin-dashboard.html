@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>셀러 마진 계산기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161920;
+    --surface2: #1e2230;
+    --border: #2a2f3f;
+    --text: #e8ecf4;
+    --text-muted: #6b7694;
+    --accent: #4ade80;
+    --accent2: #38bdf8;
+    --warn: #fb923c;
+    --danger: #f87171;
+    --smart: #4ade80;
+    --coupang: #f97316;
+    --open: #a78bfa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-weight: 900;
+    font-size: 18px;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .header-stats {
+    display: flex;
+    gap: 24px;
+  }
+  .hstat {
+    text-align: right;
+  }
+  .hstat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+  .hstat-val { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; color: var(--accent); }
+
+  /* LAYOUT */
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 28px 32px;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* PANEL */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+  .panel-header span { color: var(--text); }
+  .panel-body { padding: 20px; }
+
+  /* FORM */
+  .form-group { margin-bottom: 16px; }
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+  }
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--accent2); }
+  input::placeholder { color: var(--text-muted); font-family: 'Noto Sans KR', sans-serif; font-size: 13px; }
+
+  .input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  /* MARGIN PRESETS */
+  .margin-presets {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .preset-btn {
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .preset-btn:hover, .preset-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+    font-weight: 700;
+  }
+
+  /* MARKET TOGGLES */
+  .market-toggles {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .market-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 13px;
+    font-weight: 500;
+    user-select: none;
+  }
+  .market-toggle input { display: none; }
+  .market-toggle.smart { --mc: var(--smart); }
+  .market-toggle.coupang { --mc: var(--coupang); }
+  .market-toggle.open { --mc: var(--open); }
+  .market-toggle.active { border-color: var(--mc); background: color-mix(in srgb, var(--mc) 15%, transparent); color: var(--mc); }
+  .market-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mc); }
+
+  /* FEE INPUTS */
+  .fee-inputs { display: none; margin-top: 12px; }
+  .fee-inputs.show { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .fee-input-wrap label { font-size: 10px; }
+
+  /* CALC BUTTON */
+  .calc-btn {
+    width: 100%;
+    padding: 13px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-weight: 900;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Noto Sans KR', sans-serif;
+    letter-spacing: -0.3px;
+    margin-top: 4px;
+  }
+  .calc-btn:hover { background: #22c55e; transform: translateY(-1px); }
+  .calc-btn:active { transform: translateY(0); }
+
+  .save-btn {
+    width: 100%;
+    padding: 10px;
+    background: transparent;
+    color: var(--accent2);
+    border: 1px solid var(--accent2);
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Noto Sans KR', sans-serif;
+    margin-top: 8px;
+  }
+  .save-btn:hover { background: color-mix(in srgb, var(--accent2) 15%, transparent); }
+
+  /* RESULTS */
+  .result-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .result-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .result-card.smart { --mc: var(--smart); }
+  .result-card.coupang { --mc: var(--coupang); }
+  .result-card.open { --mc: var(--open); }
+  .result-card.active { border-color: var(--mc); }
+  .result-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--mc);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .result-card.active::before { opacity: 1; }
+  .rc-market {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--mc);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+  .rc-fee { font-size: 10px; color: var(--text-muted); margin-bottom: 8px; }
+  .rc-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .rc-label { font-size: 11px; color: var(--text-muted); }
+  .rc-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .rc-main {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .rc-main .rc-label { font-size: 11px; color: var(--text); font-weight: 700; }
+  .rc-main .rc-val { font-size: 16px; font-weight: 700; color: var(--mc); }
+  .rc-sale-price {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* MARGIN BADGE */
+  .margin-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+  }
+  .badge-good { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+  .badge-warn { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
+  .badge-bad { background: color-mix(in srgb, var(--danger) 20%, transparent); color: var(--danger); }
+
+  /* INVERSE RESULT */
+  .inverse-result {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .inverse-result.show { display: block; }
+  .inverse-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+  .inverse-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .inv-item {
+    text-align: center;
+    padding: 10px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .inv-item.smart { border-color: var(--smart); background: color-mix(in srgb, var(--smart) 8%, transparent); }
+  .inv-item.coupang { border-color: var(--coupang); background: color-mix(in srgb, var(--coupang) 8%, transparent); }
+  .inv-item.open { border-color: var(--open); background: color-mix(in srgb, var(--open) 8%, transparent); }
+  .inv-label { font-size: 10px; font-weight: 700; margin-bottom: 4px; }
+  .inv-item.smart .inv-label { color: var(--smart); }
+  .inv-item.coupang .inv-label { color: var(--coupang); }
+  .inv-item.open .inv-label { color: var(--open); }
+  .inv-price {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .inv-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+  /* PRODUCT TABLE */
+  .table-toolbar {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .toolbar-left { display: flex; align-items: center; gap: 10px; }
+  .search-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 12px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    outline: none;
+    width: 200px;
+  }
+  .search-input:focus { border-color: var(--accent2); }
+
+  .filter-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .export-btn {
+    padding: 7px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .clear-btn {
+    padding: 7px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.15s;
+  }
+  .clear-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  th:hover { color: var(--text); }
+  th .sort-arrow { margin-left: 3px; opacity: 0.4; }
+  th.sort-asc .sort-arrow::after { content: '↑'; }
+  th.sort-desc .sort-arrow::after { content: '↓'; }
+  th:not(.sort-asc):not(.sort-desc) .sort-arrow::after { content: '↕'; }
+
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  tr:hover td { background: var(--surface2); }
+  tr:last-child td { border-bottom: none; }
+
+  .td-mono { font-family: 'DM Mono', monospace; }
+  .td-product { font-weight: 600; max-width: 160px; }
+  .td-product small { display: block; font-weight: 400; color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+
+  .mini-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+  }
+  .mb-smart { background: color-mix(in srgb,var(--smart) 15%,transparent); color: var(--smart); }
+  .mb-coupang { background: color-mix(in srgb,var(--coupang) 15%,transparent); color: var(--coupang); }
+  .mb-open { background: color-mix(in srgb,var(--open) 15%,transparent); color: var(--open); }
+
+  .del-row-btn {
+    padding: 4px 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .del-row-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+  .empty-state {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; }
+  .empty-text { font-size: 14px; }
+  .empty-sub { font-size: 12px; margin-top: 4px; opacity: 0.6; }
+
+  /* COUNT BADGE */
+  .count-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 999;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* DIVIDER */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 960px) {
+    .container { grid-template-columns: 1fr; }
+    .result-cards { grid-template-columns: 1fr; }
+    .inverse-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    셀러 마진 계산기
+  </div>
+  <div class="header-stats">
+    <div class="hstat">
+      <div class="hstat-label">저장된 상품</div>
+      <div class="hstat-val" id="hstat-count">0</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-label">평균 마진율</div>
+      <div class="hstat-val" id="hstat-avg">—</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-label">최고 마진</div>
+      <div class="hstat-val" id="hstat-best">—</div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- LEFT: 계산기 -->
+  <div>
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-header">📦 <span>상품 정보 입력</span></div>
+      <div class="panel-body">
+        <div class="form-group">
+          <label>상품명</label>
+          <input type="text" id="productName" placeholder="예: 무선 블루투스 이어폰">
+        </div>
+        <div class="form-group">
+          <label>도매 원가 (원)</label>
+          <input type="number" id="costPrice" placeholder="0" min="0">
+        </div>
+        <div class="input-row">
+          <div class="form-group" style="margin-bottom:0">
+            <label>도매 배송비 (원)</label>
+            <input type="number" id="supplyShipping" placeholder="0" min="0">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>마켓 배송비 (원)</label>
+            <input type="number" id="marketShipping" placeholder="0" min="0">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-header">🏪 <span>마켓 선택</span></div>
+      <div class="panel-body">
+        <div class="market-toggles">
+          <label class="market-toggle smart active" id="toggle-smart">
+            <input type="checkbox" checked onchange="toggleMarket('smart', this)">
+            <div class="market-dot"></div>스마트스토어
+          </label>
+          <label class="market-toggle coupang active" id="toggle-coupang">
+            <input type="checkbox" checked onchange="toggleMarket('coupang', this)">
+            <div class="market-dot"></div>쿠팡
+          </label>
+          <label class="market-toggle open active" id="toggle-open">
+            <input type="checkbox" checked onchange="toggleMarket('open', this)">
+            <div class="market-dot"></div>오픈마켓
+          </label>
+        </div>
+        <div class="fee-inputs show" id="fee-inputs">
+          <div class="fee-input-wrap">
+            <label>스마트스토어 수수료 (%)</label>
+            <input type="number" id="fee-smart" value="6.6" step="0.1" min="0" max="100">
+          </div>
+          <div class="fee-input-wrap">
+            <label>쿠팡 수수료 (%)</label>
+            <input type="number" id="fee-coupang" value="8" step="0.1" min="0" max="100">
+          </div>
+          <div class="fee-input-wrap">
+            <label>오픈마켓 수수료 (%)</label>
+            <input type="number" id="fee-open" value="15" step="0.1" min="0" max="100">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-header">📊 <span>마진 설정</span></div>
+      <div class="panel-body">
+        <div class="form-group" style="margin-bottom:10px">
+          <label>희망 마진율 (%)</label>
+          <input type="number" id="targetMargin" placeholder="0" min="0" max="100" step="1">
+          <div class="margin-presets">
+            <button class="preset-btn" onclick="setMargin(10)">10%</button>
+            <button class="preset-btn" onclick="setMargin(15)">15%</button>
+            <button class="preset-btn" onclick="setMargin(20)">20%</button>
+            <button class="preset-btn" onclick="setMargin(25)">25%</button>
+            <button class="preset-btn" onclick="setMargin(30)">30%</button>
+          </div>
+        </div>
+        <button class="calc-btn" onclick="calculate()">마진 계산하기</button>
+        <button class="save-btn" onclick="saveProduct()">＋ 상품 목록에 저장</button>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div id="results-area" style="display:none">
+      <div id="inverse-result" class="inverse-result">
+        <div class="inverse-title">📌 희망 마진율 달성을 위한 권장 판매가</div>
+        <div class="inverse-grid" id="inverse-grid"></div>
+      </div>
+
+      <div class="result-cards" id="result-cards"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: 상품 목록 -->
+  <div class="panel">
+    <div class="panel-header">
+      📋 <span>저장된 상품 목록</span>
+      <span class="count-badge" id="product-count">0</span>
+    </div>
+    <div class="table-toolbar">
+      <div class="toolbar-left">
+        <input class="search-input" type="text" id="search-input" placeholder="🔍 상품명 검색..." oninput="renderTable()">
+        <select class="filter-select" id="margin-filter" onchange="renderTable()">
+          <option value="">마진 필터 전체</option>
+          <option value="30">30% 이상</option>
+          <option value="20">20% 이상</option>
+          <option value="10">10% 이상</option>
+          <option value="-1">마진 미달</option>
+        </select>
+        <select class="filter-select" id="market-filter" onchange="renderTable()">
+          <option value="">마켓 전체</option>
+          <option value="스마트스토어">스마트스토어</option>
+          <option value="쿠팡">쿠팡</option>
+          <option value="오픈마켓">오픈마켓</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="export-btn" onclick="exportCSV()">📥 CSV 내보내기</button>
+        <button class="clear-btn" onclick="clearAll()">전체 삭제</button>
+      </div>
+    </div>
+    <div id="table-wrap">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">📦</div>
+        <div class="empty-text">저장된 상품이 없습니다</div>
+        <div class="empty-sub">왼쪽에서 계산 후 저장해보세요</div>
+      </div>
+      <table id="product-table" style="display:none">
+        <thead>
+          <tr>
+            <th onclick="sortTable('name')">상품명 <span class="sort-arrow"></span></th>
+            <th onclick="sortTable('cost')">원가 <span class="sort-arrow"></span></th>
+            <th onclick="sortTable('market')">마켓 <span class="sort-arrow"></span></th>
+            <th onclick="sortTable('salePrice')">판매가 <span class="sort-arrow"></span></th>
+            <th onclick="sortTable('margin')">마진율 <span class="sort-arrow"></span></th>
+            <th onclick="sortTable('profit')">순이익 <span class="sort-arrow"></span></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let products = JSON.parse(localStorage.getItem('seller-products') || '[]');
+let sortCol = 'margin';
+let sortDir = 'desc';
+let markets = { smart: true, coupang: true, open: true };
+
+const MARKET_INFO = {
+  smart:   { name: '스마트스토어', class: 'smart', mbClass: 'mb-smart' },
+  coupang: { name: '쿠팡',         class: 'coupang', mbClass: 'mb-coupang' },
+  open:    { name: '오픈마켓',     class: 'open', mbClass: 'mb-open' },
+};
+
+function fmt(n) { return Math.round(n).toLocaleString('ko-KR'); }
+function fmtPct(n) { return n.toFixed(1) + '%'; }
+
+function toggleMarket(key, el) {
+  markets[key] = el.checked;
+  document.getElementById('toggle-' + key).classList.toggle('active', el.checked);
+}
+
+function setMargin(val) {
+  document.getElementById('targetMargin').value = val;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function getInputs() {
+  return {
+    name: document.getElementById('productName').value.trim() || '미입력 상품',
+    cost: parseFloat(document.getElementById('costPrice').value) || 0,
+    supShip: parseFloat(document.getElementById('supplyShipping').value) || 0,
+    mktShip: parseFloat(document.getElementById('marketShipping').value) || 0,
+    target: parseFloat(document.getElementById('targetMargin').value) || 0,
+    fees: {
+      smart: parseFloat(document.getElementById('fee-smart').value) || 6.6,
+      coupang: parseFloat(document.getElementById('fee-coupang').value) || 8,
+      open: parseFloat(document.getElementById('fee-open').value) || 15,
+    }
+  };
+}
+
+function calcForMarket(cost, supShip, mktShip, feeRate, targetMargin) {
+  const totalCost = cost + supShip;
+
+  // 순방향: 판매가 = totalCost + mktShip + profit
+  // targetMargin이 있으면 역산
+  let salePrice, feeAmt, profit, marginRate;
+
+  if (targetMargin > 0) {
+    // 역산: salePrice * (1 - feeRate/100) = totalCost + mktShip + salePrice * (targetMargin/100)
+    // salePrice * (1 - feeRate/100 - targetMargin/100) = totalCost + mktShip
+    const denom = 1 - feeRate / 100 - targetMargin / 100;
+    if (denom <= 0) { salePrice = 0; }
+    else { salePrice = Math.ceil((totalCost + mktShip) / denom); }
+    feeAmt = salePrice * feeRate / 100;
+    profit = salePrice - feeAmt - mktShip - totalCost;
+    marginRate = salePrice > 0 ? (profit / salePrice) * 100 : 0;
+  } else {
+    // 그냥 현재 판매가 기준 마진율 계산 (판매가 입력 없으면 0)
+    salePrice = 0;
+    feeAmt = 0;
+    profit = -totalCost - mktShip;
+    marginRate = 0;
+  }
+
+  return { salePrice, feeAmt, profit, marginRate, totalCost, mktShip };
+}
+
+function calculate() {
+  const inp = getInputs();
+  if (!inp.cost) { showToast('원가를 입력해주세요', true); return; }
+
+  document.getElementById('results-area').style.display = 'block';
+
+  const activeMarkets = Object.keys(markets).filter(k => markets[k]);
+
+  // 역산 판매가
+  const inverseHTML = activeMarkets.map(k => {
+    const m = MARKET_INFO[k];
+    const r = calcForMarket(inp.cost, inp.supShip, inp.mktShip, inp.fees[k], inp.target);
+    return `<div class="inv-item ${m.class}">
+      <div class="inv-label">${m.name}</div>
+      <div class="inv-price">${fmt(r.salePrice)}원</div>
+      <div class="inv-sub">수수료 ${fmtPct(inp.fees[k])}</div>
+    </div>`;
+  }).join('');
+
+  const invEl = document.getElementById('inverse-result');
+  document.getElementById('inverse-grid').innerHTML = inverseHTML;
+  invEl.classList.toggle('show', inp.target > 0 && inp.cost > 0);
+
+  // 마켓별 결과 카드
+  const cardsHTML = activeMarkets.map(k => {
+    const m = MARKET_INFO[k];
+    const r = calcForMarket(inp.cost, inp.supShip, inp.mktShip, inp.fees[k], inp.target);
+    const badgeClass = r.marginRate >= 20 ? 'badge-good' : r.marginRate >= 10 ? 'badge-warn' : 'badge-bad';
+    return `<div class="result-card ${m.class} active">
+      <div class="rc-market">${m.name}</div>
+      <div class="rc-fee">수수료 ${fmtPct(inp.fees[k])}</div>
+      <div class="rc-row"><span class="rc-label">총 원가</span><span class="rc-val td-mono">${fmt(r.totalCost + r.mktShip)}원</span></div>
+      <div class="rc-row"><span class="rc-label">마켓 수수료</span><span class="rc-val td-mono">${fmt(r.feeAmt)}원</span></div>
+      <div class="rc-row"><span class="rc-label">배송비 부담</span><span class="rc-val td-mono">${fmt(r.mktShip)}원</span></div>
+      <div class="rc-main">
+        <div class="rc-row"><span class="rc-label">권장 판매가</span></div>
+        <div style="font-family:'DM Mono',monospace;font-size:20px;font-weight:900;color:var(--mc);margin:4px 0">${fmt(r.salePrice)}원</div>
+        <div class="rc-row" style="margin-top:6px">
+          <span class="rc-label">순이익</span>
+          <span class="rc-val td-mono" style="color:${r.profit>=0?'var(--accent)':'var(--danger)'}">${fmt(r.profit)}원</span>
+        </div>
+        <div class="rc-row">
+          <span class="rc-label">실제 마진율</span>
+          <span class="margin-badge ${badgeClass}">${fmtPct(r.marginRate)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('result-cards').innerHTML = cardsHTML;
+
+  // store last result
+  window._lastResult = { inp, activeMarkets };
+}
+
+function saveProduct() {
+  if (!window._lastResult) { calculate(); if (!window._lastResult) return; }
+  const { inp, activeMarkets } = window._lastResult;
+  if (!inp.cost) { showToast('원가를 먼저 입력하세요', true); return; }
+
+  activeMarkets.forEach(k => {
+    const m = MARKET_INFO[k];
+    const r = calcForMarket(inp.cost, inp.supShip, inp.mktShip, inp.fees[k], inp.target);
+    products.push({
+      id: Date.now() + Math.random(),
+      name: inp.name,
+      cost: inp.cost,
+      supShip: inp.supShip,
+      mktShip: inp.mktShip,
+      market: m.name,
+      marketClass: m.class,
+      mbClass: m.mbClass,
+      fee: inp.fees[k],
+      salePrice: r.salePrice,
+      feeAmt: r.feeAmt,
+      profit: r.profit,
+      margin: r.marginRate,
+      savedAt: new Date().toLocaleDateString('ko-KR'),
+    });
+  });
+
+  localStorage.setItem('seller-products', JSON.stringify(products));
+  renderTable();
+  updateStats();
+  showToast(`✅ ${inp.name} 저장 완료 (${activeMarkets.length}개 마켓)`);
+}
+
+function renderTable() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  const mFilter = parseFloat(document.getElementById('margin-filter').value);
+  const mkFilter = document.getElementById('market-filter').value;
+
+  let filtered = products.filter(p => {
+    if (search && !p.name.toLowerCase().includes(search)) return false;
+    if (mkFilter && p.market !== mkFilter) return false;
+    if (!isNaN(mFilter)) {
+      if (mFilter === -1 && p.margin >= 0) return false;
+      if (mFilter >= 0 && p.margin < mFilter) return false;
+    }
+    return true;
+  });
+
+  // sort
+  filtered.sort((a, b) => {
+    let av = a[sortCol], bv = b[sortCol];
+    if (typeof av === 'string') av = av.toLowerCase(), bv = bv.toLowerCase();
+    return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+  });
+
+  const empty = document.getElementById('empty-state');
+  const table = document.getElementById('product-table');
+  const tbody = document.getElementById('table-body');
+
+  if (filtered.length === 0) {
+    empty.style.display = 'block';
+    table.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  table.style.display = 'table';
+
+  tbody.innerHTML = filtered.map(p => {
+    const badgeClass = p.margin >= 20 ? 'badge-good' : p.margin >= 10 ? 'badge-warn' : 'badge-bad';
+    return `<tr>
+      <td class="td-product">${p.name}<small>${p.savedAt}</small></td>
+      <td class="td-mono">${fmt(p.cost)}원</td>
+      <td><span class="mini-badge ${p.mbClass}">${p.market}</span></td>
+      <td class="td-mono">${fmt(p.salePrice)}원</td>
+      <td><span class="margin-badge ${badgeClass}">${fmtPct(p.margin)}</span></td>
+      <td class="td-mono" style="color:${p.profit>=0?'var(--accent)':'var(--danger)'}">${fmt(p.profit)}원</td>
+      <td><button class="del-row-btn" onclick="deleteProduct(${p.id})">삭제</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateStats() {
+  const n = products.length;
+  document.getElementById('hstat-count').textContent = n;
+  document.getElementById('product-count').textContent = n;
+  if (n === 0) {
+    document.getElementById('hstat-avg').textContent = '—';
+    document.getElementById('hstat-best').textContent = '—';
+    return;
+  }
+  const avg = products.reduce((s, p) => s + p.margin, 0) / n;
+  const best = Math.max(...products.map(p => p.margin));
+  document.getElementById('hstat-avg').textContent = fmtPct(avg);
+  document.getElementById('hstat-best').textContent = fmtPct(best);
+}
+
+function deleteProduct(id) {
+  products = products.filter(p => p.id !== id);
+  localStorage.setItem('seller-products', JSON.stringify(products));
+  renderTable();
+  updateStats();
+  showToast('🗑 삭제되었습니다');
+}
+
+function clearAll() {
+  if (!confirm('저장된 상품 목록을 모두 삭제할까요?')) return;
+  products = [];
+  localStorage.setItem('seller-products', JSON.stringify(products));
+  renderTable();
+  updateStats();
+  showToast('전체 삭제 완료');
+}
+
+function sortTable(col) {
+  if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  else { sortCol = col; sortDir = 'desc'; }
+  document.querySelectorAll('th').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.getAttribute('onclick') === `sortTable('${col}')`) {
+      th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+    }
+  });
+  renderTable();
+}
+
+function exportCSV() {
+  if (products.length === 0) { showToast('저장된 상품이 없습니다', true); return; }
+  const headers = ['상품명', '원가', '도매배송비', '마켓배송비', '마켓', '수수료(%)', '판매가', '수수료금액', '순이익', '마진율(%)'];
+  const rows = products.map(p => [
+    p.name, p.cost, p.supShip, p.mktShip, p.market, p.fee.toFixed(1), p.salePrice, Math.round(p.feeAmt), Math.round(p.profit), p.margin.toFixed(1)
+  ]);
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `마진계산_${new Date().toLocaleDateString('ko-KR').replace(/\./g,'')}.csv`;
+  a.click();
+  showToast('📥 CSV 파일 다운로드 완료');
+}
+
+let toastTimer;
+function showToast(msg, err = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = err ? 'var(--danger)' : 'var(--accent)';
+  t.style.color = err ? 'var(--danger)' : 'var(--accent)';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Init
+renderTable();
+updateStats();
+
+// Enter key calc
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.tagName === 'INPUT') calculate();
+});
+</script>
+</body>
+</html>
