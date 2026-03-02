@@ -16,6 +16,9 @@ test/
 자료조사/
 업데이트_기록/
 SYSTEM_DESIGN/
+frontend/
+작업결과/
+github/
 *.md
 !README.md
 
