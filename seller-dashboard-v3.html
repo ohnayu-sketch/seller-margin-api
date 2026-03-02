@@ -518,10 +518,23 @@ window._oauthDebug = function(msg, data) {
 <div class="access-denied" id="access-denied">
   <div class="denied-card">
     <div class="denied-icon">🚫</div>
-    <div class="denied-title">접근이 거부되었습니다</div>
-    <div class="denied-email" id="denied-email"></div>
-    <div class="denied-sub">이 계정은 허용된 사용자가 아닙니다.<br>남편 또는 아내 계정으로 로그인해주세요.</div>
-    <button class="denied-btn" onclick="signOut()">다른 계정으로 로그인</button>
+</div><!-- end login-screen -->
+
+<!-- === ACCESS DENIED SCREEN === -->
+<div id="access-denied" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:9000; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center;">
+  <div style="background:var(--surface); border:1px solid var(--danger); padding:30px 20px; border-radius:12px; max-width:400px; width:100%;">
+    <div style="font-size:40px; margin-bottom:10px;">🚫</div>
+    <h2 style="color:var(--danger); margin-bottom:15px; font-weight:900;">접근 권한 없음</h2>
+    <div style="color:var(--text); font-size:14px; margin-bottom:10px;">
+      현재 계정(<strong id="denied-email" style="color:var(--accent2);"></strong>)은<br>관리자가 허가한 접근 이메일 목록에 없습니다.
+    </div>
+    <div style="color:var(--text-muted); font-size:12px; margin-bottom:24px; line-height:1.5;">
+      이용을 원하시면 대시보드 관리자의<br><strong>'설정 탭 > 인증'</strong> 화면에서 이메일을 등록받거나<br><strong>초대 링크</strong>를 통해 가입해야 합니다.
+    </div>
+    <div style="display:flex; gap:10px; justify-content:center;">
+      <button onclick="location.reload()" style="padding:12px 20px; background:var(--surface2); color:white; border:1px solid var(--border); border-radius:8px; font-weight:700; cursor:pointer; width:100%;">다시 시도</button>
+      <button onclick="signOut()" style="padding:12px 20px; background:var(--danger); color:white; border:none; border-radius:8px; font-weight:700; cursor:pointer; width:100%;">다른 계정 로그인</button>
+    </div>
   </div>
 </div>
 
@@ -2127,7 +2140,7 @@ function processGoogleUser(email, name) {
     document.getElementById('app-wrapper').style.display = 'none';
     var denied = document.getElementById('access-denied');
     var deniedEmail = document.getElementById('denied-email');
-    if (denied) denied.classList.add('show');
+    if (denied) denied.style.display = 'flex'; // 수정: classList add show -> style display = flex
     if (deniedEmail) deniedEmail.textContent = email;
     if (typeof _oauthDebug === 'function') _oauthDebug('접근 거부 (허용 목록에 없음)', { email: email });
     return;
