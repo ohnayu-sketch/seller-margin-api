@@ -3,11 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<script>
+  window.onerror = function(msg, url, lineNo, columnNo, error) {
+    const d = document.createElement('div');
+    d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:white;z-index:999999;padding:20px;font-size:16px;font-weight:bold;line-height:1.5;word-break:break-all;text-align:left;';
+    d.innerHTML = '🔥 치명적 오류 발생:<br>' + msg + '<br>줄: ' + lineNo + ':' + columnNo + '<br>' + (error && error.stack ? '<pre>'+error.stack+'</pre>' : '');
+    document.documentElement.appendChild(d);
+    return false;
+  };
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="셀러마진">
 <title>셀러 마진 계산기</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
