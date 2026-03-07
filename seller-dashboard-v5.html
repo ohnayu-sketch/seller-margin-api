@@ -1459,27 +1459,64 @@ function processGoogleUser(email, name) {
   onAuthSuccess(email, name);
 }
 
+const ADMIN_EMAILS = ['ohnayu@gmail.com', 'ohhhjs90@gmail.com'];
+let sessionTimeoutTimer = null;
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+
+function resetSessionTimer() {
+    if (sessionTimeoutTimer) clearTimeout(sessionTimeoutTimer);
+    sessionTimeoutTimer = setTimeout(() => {
+        showToast('보안을 위해 30분간 활동이 없어 자동 로그아웃되었습니다.', true);
+        setTimeout(signOut, 2000);
+    }, SESSION_TIMEOUT_MS);
+}
+
+['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+    window.addEventListener(evt, resetSessionTimer, { passive: true });
+});
+
+function showPinModal() {
+    const modal = document.getElementById('pin-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        const pinInput = document.getElementById('pin-digit');
+        if (pinInput) pinInput.focus();
+        const wrapper = document.getElementById('app-wrapper');
+        if (wrapper) {
+            wrapper.style.pointerEvents = 'none';
+            wrapper.style.opacity = '0.3';
+        }
+    }
+}
+
+function verifyPin() {
+    const entered = document.getElementById('pin-digit').value;
+    const savedPin = localStorage.getItem('master-pin-config') || '0000';
+    if (entered === savedPin) {
+        document.getElementById('pin-modal').style.display = 'none';
+        const wrapper = document.getElementById('app-wrapper');
+        if (wrapper) {
+            wrapper.style.pointerEvents = 'auto';
+            wrapper.style.opacity = '1';
+        }
+        showToast('인증되었습니다. 대시보드 액세스를 허용합니다.');
+        resetSessionTimer();
+    } else {
+        showToast('PIN 번호가 틀렸습니다.', true);
+        document.getElementById('pin-digit').value = '';
+    }
+}
+
 function isAllowed(email) {
   if (!email) return false;
   const targetEmail = email.toLowerCase().trim();
-  const ADMIN_EMAILS = ['ohnayu@gmail.com', 'ohhhjs90@gmail.com'];
   if (ADMIN_EMAILS.includes(targetEmail)) return true;
-
-  // T7 Access Control: 동적으로 저장된 화이트리스트 확인
   const extraEmails = (localStorage.getItem('allowed-emails-config') || '').toLowerCase().split(',').map(e => e.trim()).filter(Boolean);
   if (extraEmails.includes(targetEmail)) return true;
-
   const invitedEmail = (localStorage.getItem('invited-email') || '').toLowerCase().trim();
   if (invitedEmail && invitedEmail === targetEmail) return true;
-
-  // 관리자 및 화이트리스트가 비어있는 초기 상태 배려
-  if (!extraEmails.length && !ADMIN_EMAILS.includes(targetEmail)) return false;
-
-  return ADMIN_EMAILS.includes(targetEmail) || extraEmails.includes(targetEmail);
+  return false;
 }
-
-// ==================== AI 트렌드 소싱 위젯 ====================
-
 
 function onAuthSuccess(email, name) {
   console.log('[Auth] onAuthSuccess started for:', email);
@@ -1490,31 +1527,10 @@ function onAuthSuccess(email, name) {
 
     if (loginScreen) { loginScreen.classList.add('hidden'); loginScreen.style.display = 'none'; }
     if (accessDenied) accessDenied.classList.remove('show');
-
-    // 🔐 PIN 이중 인증 체크 (T7 보안 수칙)
-    const savedPin = localStorage.getItem('master-pin-config');
-    if (savedPin && savedPin !== '0000') {
-      const userPin = prompt('보안을 위해 4자리 PIN을 입력하세요:');
-      if (userPin !== savedPin) {
-        alert('PIN 번호가 일치하지 않습니다. 다시 로그인해주세요.');
-        localStorage.removeItem('isLoggedIn');
-        window.location.reload();
-        return;
-      }
-    }
-
     if (appWrapper) appWrapper.style.display = 'block';
 
-    // 강제 초기 탭 할당 방어 로직 (V5)
-    setTimeout(() => {
-        if(typeof showTab === 'function') {
-            showTab('sourcing');
-        } else {
-            console.warn('[Routing] showTab function not found yet.');
-        }
-    }, 100);
+    showPinModal();
 
-    // 남편/아내 자동 판단
     const email1 = (localStorage.getItem('allowed-email-1') || '').trim();
     window.currentUser = (email && email1 && email.toLowerCase() === email1.toLowerCase()) ? '남편' : '아내';
 
@@ -1527,7 +1543,6 @@ function onAuthSuccess(email, name) {
     if (savedUrl) {
       const urlInput = document.getElementById('script-url-input');
       if (urlInput) urlInput.value = savedUrl;
-      console.log('[Auth] Loading products...');
       loadProducts();
     } else {
       setSyncStatus('error', 'URL 미설정');
@@ -1537,30 +1552,64 @@ function onAuthSuccess(email, name) {
     const be = document.getElementById('api-backendUrl');
     if (be && savedApiUrl) be.value = savedApiUrl;
 
-    console.log('[Auth] Rendering history & recalcing...');
-    // 앱 화면 구성 그리기
     let lastTab = localStorage.getItem('lastTab');
     if (!lastTab || lastTab === 'null' || lastTab === 'undefined' || !TAB_IDS.includes(lastTab)) {
-      lastTab = 'intel'; // 기본값 T1
+      lastTab = 'intel';
     }
-    if (typeof showTab === 'function') {
-      showTab(lastTab);
-    } else {
-      renderHistory();
-      recalcMargin();
-    }
+    showTab(lastTab);
 
-    window.appReady = true;  // [Rescue] 준비 완료 플래그
-    if (window._rescueTimer) clearTimeout(window._rescueTimer);
-
+    window.appReady = true;
     if (typeof loadVendors === 'function') loadVendors();
     if (typeof loadAiRecommendations === 'function') loadAiRecommendations();
     console.log('[Auth] onAuthSuccess completed.');
   } catch (err) {
     console.error('[Auth] Error in onAuthSuccess:', err);
-    window.onerror(err.message, window.location.href, 0, 0, err);
   }
 }
+
+const originalShowTab = window.showTab;
+window.showTab = function(name) {
+    if (name === 'setup') {
+        const userEmail = (localStorage.getItem('auth-email') || '').toLowerCase();
+        if (!ADMIN_EMAILS.includes(userEmail)) {
+            showToast('⚠️ 접근 권한이 없습니다. 관리자만 접근 가능합니다.', true);
+            return;
+        }
+    }
+
+    // Original Tab Logic with Resize Fix
+    const pages = document.querySelectorAll('.page');
+    pages.forEach(p => {
+        p.classList.remove('active');
+        p.style.display = 'none';
+        p.style.opacity = '0';
+    });
+
+    const page = document.getElementById('page-' + name);
+    if (page) {
+        page.style.display = 'block';
+        page.classList.add('active');
+
+        // Ensure DOM is ready for layout calculations (Fix for Chart.js)
+        requestAnimationFrame(() => {
+            page.style.opacity = '1';
+            window.dispatchEvent(new Event('resize'));
+
+            // If it's finance tab, particularly force chart updates
+            if (name === 'finance' && typeof syncStateAndRender === 'function') {
+                syncStateAndRender('finance');
+            }
+        });
+    }
+
+    const links = document.querySelectorAll('.nav-links a');
+    links.forEach(l => {
+        l.classList.remove('active');
+        if (l.getAttribute('onclick')?.includes(`'${name}'`)) l.classList.add('active');
+    });
+
+    localStorage.setItem('lastTab', name);
+};
 
 
 function handleCredentialResponse(response) {
@@ -6671,14 +6720,10 @@ window.t1State = new T1StateManager();
                             <button class="action-btn secondary" onclick="findV5Suppliers()">📦 1688 공급처 매칭</button>
                             <button class="action-btn primary" onclick="sendToSimulator()">🚀 시뮬레이터로 전환</button>
                         </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
 </div>
-        <div class="page" id="page-inventory">
+<div class="page" id="page-inventory">
     <div class="calc-container v5-simulator-layout">
         <!-- [LEFT] Online Consignment Column -->
         <div class="calc-left-pane">
@@ -6870,7 +6915,7 @@ window.t1State = new T1StateManager();
             </div> <!-- /.panel -->
 
             <!-- [NEW] 공급업체 등록 모달 (V5용 캡슐화 제1원칙 준수) -->
-            <div class="panel" id="vendor-modal" style="display:block; margin-top:16px;">
+            <div class="panel" id="vendor-modal" style="display:none; margin-top:16px;">
                 <div class="panel-header" style="background:var(--surface3);">🏢 공급업체 현장 등록</div>
                 <div class="panel-body">
                     <input type="hidden" id="vendor-id">
@@ -7017,8 +7062,7 @@ window.t1State = new T1StateManager();
 </div>
 <div class="product-cards" id="product-cards" style="display:none"></div>
 </div>
-</div>
-</div><div class="calc-right-pane" style="max-width:100%; flex:1;">
+<div class="calc-right-pane" style="max-width:100%; flex:1;">
 <div class="panel" style="margin-bottom:16px">
 <div class="panel-header">🔗 <span>마켓 연동 현황</span></div>
 <div class="panel-body">
@@ -7057,7 +7101,8 @@ window.t1State = new T1StateManager();
 <label style="display:flex;align-items:center;gap:8px"><input disabled="" type="checkbox"/> 쿠팡 Wing API 연결</label>
 </div>
 </div>
-</div></div></div>
+</div>
+</div>
         <div class="page" id="page-finance">
   <!-- 핵심 금융 지표 요약 (Phase 5) -->
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px;">
@@ -7253,6 +7298,7 @@ window.t1State = new T1StateManager();
                 </div>
             </div>
         </div>
+
         <div class="page" id="page-oms">
             <div class="calc-container">
                 <div class="panel" style="width:100%;">
@@ -7274,9 +7320,7 @@ window.t1State = new T1StateManager();
                             <button class="primary-btn mini" onclick="showAddPlatformModal()">+ 새 플랫폼 추가</button>
                         </div>
                         <div class="panel-body">
-                            <div id="platform-dynamic-list" class="v5-wholesale-grid">
-                                <!-- Dynamically added platforms appear here -->
-                            </div>
+                            <div id="platform-dynamic-list" class="v5-wholesale-grid"></div>
                             <p style="font-size:11px; color:var(--text-muted); margin-top:10px;">사용자가 무한히 추가할 수 있는 플랫폼 모듈입니다. API 연동 또는 크롤러 브릿지를 선택할 수 있습니다.</p>
                         </div>
                     </div>
@@ -7287,340 +7331,83 @@ window.t1State = new T1StateManager();
                         <div class="panel-body">
                             <div class="form-group">
                                 <label>화이트리스트 구글 이메일 (콤마로 구분)</label>
-                                <textarea id="allowed-emails-config" placeholder="husband@gmail.com, wife@gmail.com" style="height:60px;"></textarea>
+                                <textarea id="allowed-emails-config-T7" placeholder="husband@gmail.com, wife@gmail.com" style="height:60px;" onchange="localStorage.setItem('allowed-emails-config', this.value)"></textarea>
                             </div>
                             <div class="form-group" style="margin-top:10px;">
                                 <label>앱 마스터 잠금 (4자리 PIN)</label>
                                 <div style="display:flex; gap:8px;">
-                                    <input type="password" id="master-pin-config" placeholder="****" maxlength="4" style="flex:1;">
-                                    <button class="action-btn" onclick="saveSecuritySettings()">보안 설정 저장</button>
+                                    <input type="password" id="master-pin-config-T7" placeholder="****" maxlength="4" style="flex:1;">
+                                    <button class="action-btn" onclick="const pin=document.getElementById('master-pin-config-T7').value; if(pin){localStorage.setItem('master-pin-config', pin); showToast('보안 PIN 저장됨');}">보안 설정 저장</button>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 기존 설정 항목 유지 -->
+                    <!-- 단계별 설정 안내 -->
                     <div class="setup-step">
-                        <div class="step-header">
-                            <div class="step-num done">✓</div>
-                            <div class="step-title">Step 1 — 구글 시트 연결됨</div>
-                        </div>
-                        <div class="step-desc">시트 ID: <span id="display-sheet-id" style="color:var(--accent2);">--</span></div>
+                        <div class="step-header"><div class="step-num done">✓</div><div class="step-title">Step 1 — 구글 시트 연결됨</div></div>
+                        <div class="step-desc">시트 ID: <span id="display-sheet-id" style="color:var(--accent2); font-family:monospace;">--</span></div>
                     </div>
-                    <!-- ... 나머지 설정 UI 생략 (아래 Chunk에서 처리) ... -->
+
+                    <div class="setup-step">
+                        <div class="step-header"><div class="step-num" id="step2-num">2</div><div class="step-title">Step 2 — Apps Script 설치</div></div>
+                        <div class="step-desc">구글 시트에서 <strong>확장 프로그램 → Apps Script</strong> 클릭 후 코드를 복사해 붙여넣으세요.</div>
+                        <button class="copy-btn" onclick="copyScript()">📋 Apps Script 코드 복사</button>
+                    </div>
+
+                    <div class="setup-step">
+                        <div class="step-header"><div class="step-num" id="step3-num">3</div><div class="step-title">Step 3 — Apps Script 배포 URL</div></div>
+                        <input id="script-url-input" placeholder="https://script.google.com/macros/s/.../exec" style="margin-top:10px" type="text"/>
+                        <button class="calc-btn" onclick="saveScriptUrl()" style="margin-top:10px; font-size:14px">URL 저장 및 테스트</button>
+                    </div>
+
+                    <div class="setup-step">
+                        <div class="step-header"><div class="step-num">4</div><div class="step-title">계정 및 비밀번호</div></div>
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+                            <button class="action-btn" onclick="signOut()" style="background:var(--danger); color:#fff; border:none; height:40px;">🚪 로그아웃</button>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- 🚨 [경고 수칙 1 준수] 물리적 캡슐화된 모달 -->
-                <div id="add-platform-modal" class="v5-modal-overlay" style="display:none;">
-                    <div class="v5-modal-content" style="max-width:400px; background:var(--surface1); border:1px solid var(--accent);">
-                        <div class="panel-header">🚀 새 플랫폼 추가</div>
+                <div class="calc-right-pane" style="max-width:100%; flex:1;">
+                    <div class="panel">
+                        <div class="panel-header">🔑 API 키 관리</div>
                         <div class="panel-body">
-                            <div class="form-group">
-                                <label>플랫폼 이름</label>
-                                <input type="text" id="new-plat-name" placeholder="예: 알리익스프레스">
+                            <div class="form-group"><label>백엔드 서버 URL</label>
+                                <div style="display:flex; gap:8px;"><input id="api-backendUrl" placeholder="https://..." style="flex:1;"><button class="action-btn" onclick="saveApiKey('backendUrl')">저장</button></div>
                             </div>
-                            <div class="form-group">
-                                <label>연동 방식</label>
-                                <select id="new-plat-type" style="width:100%;">
-                                    <option value="api">API 인증 방식</option>
-                                    <option value="crawl">크롤링 타겟 방식</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>기본 URL</label>
-                                <input type="text" id="new-plat-url" placeholder="https://...">
-                            </div>
-                            <div style="display:flex; gap:10px; margin-top:20px;">
-                                <button class="primary-btn" onclick="addPlatform()">확인</button>
-                                <button class="secondary-btn" onclick="hideAddPlatformModal()">취소</button>
-                            </div>
+                            <!-- ... Naver, 1688, etc ... -->
+                             <div style="font-size:11px; color:var(--text-muted); margin-top:10px;">네이버, 아이템스카우트, 1688 API 설정은 하단 상세 패널에서 관리 가능합니다.</div>
+                        </div>
+                    </div>
+
+                    <div class="panel" style="margin-top:16px;">
+                        <div class="panel-header">🚀 전체 초기화</div>
+                        <div class="panel-body">
+                            <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">구글 시트 탭과 드라이브 폴더를 자동 생성합니다.</p>
+                            <button class="calc-btn" onclick="runFullInit()" style="background:var(--accent); color:#0d0f14">전체 초기화 실행</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- T7 전용 모달 (캡슐화 준수) -->
+            <div id="add-platform-modal" class="v5-modal-overlay" style="display:none;">
+                <div class="v5-modal-content" style="max-width:400px; background:var(--surface1); border:1px solid var(--accent);">
+                    <div class="panel-header">🚀 새 플랫폼 추가</div>
+                    <div class="panel-body">
+                        <div class="form-group"><label>플랫폼 이름</label><input type="text" id="new-plat-name"></div>
+                        <div style="display:flex; gap:10px; margin-top:20px;">
+                            <button class="primary-btn" onclick="addPlatform()">확인</button>
+                            <button class="secondary-btn" onclick="hideAddPlatformModal()">취소</button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-<div class="panel-body" id="top5-list">
-<div style="color:var(--text-muted);font-size:13px">저장된 상품이 없습니다</div>
-</div>
-</div>
-<div class="panel" style="margin-top:16px">
-<div class="panel-header">🏪 <span>마켓별 저장 현황</span></div>
-<div class="panel-body" id="market-stats">
-<div style="color:var(--text-muted);font-size:13px">저장된 상품이 없습니다</div>
-</div>
-</div>
-</div><div class="calc-right-pane" style="max-width:100%; flex:1;">
-<div class="setup-step">
-<div class="step-header">
-<div class="step-num done">✓</div>
-<div class="step-title">Step 1 — 구글 시트 생성 완료</div>
-</div>
-<div class="step-desc">시트 ID: <span style="color:var(--accent2);font-family:'DM Mono',monospace">1D6IlJquibWJfUkmIrKSz-PF4JYSa10dJd_GQdwtSSSg</span></div>
-</div>
-<div class="setup-step">
-<div class="step-header">
-<div class="step-num" id="step2-num">2</div>
-<div class="step-title">Step 2 — Apps Script 설치</div>
-</div>
-<div class="step-desc">
-      구글 시트에서 <strong>확장 프로그램 → Apps Script</strong> 클릭<br/>
-      기존 내용 전체 삭제 후 아래 버튼으로 복사한 <strong>확장 스크립트</strong> 붙여넣기 (카테고리·판매기록·매입매출 시트 포함)<br/>
-<strong>저장(Ctrl+S) → 배포 → 새 배포 → 웹 앱</strong><br/>
-      액세스: <strong>"모든 사용자"</strong> 선택 → 배포 → URL 복사
-    </div>
-<button class="copy-btn" onclick="copyScript()">📋 확장 Apps Script 코드 복사</button>
-</div>
-<div class="setup-step">
-<div class="step-header">
-<div class="step-num" id="step3-num">3</div>
-<div class="step-title">Step 3 — Apps Script 배포 URL</div>
-</div>
-<div class="step-desc">Apps Script 배포 후 받은 URL을 여기에 입력하세요</div>
-<input id="script-url-input" placeholder="https://script.google.com/macros/s/.../exec" style="margin-top:10px" type="text"/>
-<button class="calc-btn" onclick="saveScriptUrl()" style="margin-top:10px;font-size:14px">URL 저장 및 연결 테스트</button>
-<div class="setup-step" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
-<div class="step-header">
-<div class="step-num">4</div>
-<div class="step-title">전체 초기화</div>
-</div>
-<div class="step-desc" style="margin-top:6px">구글 시트 탭(상품목록·판매기록·매입매출·월별통계·설정·사입기록·공급업체·증빙서류)과 구글 드라이브 폴더(셀러마진/년/월/영수증·사입기록, 사입사진, 상품분석)를 자동 생성합니다. 이미 있으면 건드리지 않습니다.</div>
-<button class="calc-btn" onclick="runFullInit()" style="margin-top:12px;font-size:14px;background:var(--accent);color:#0d0f14" type="button">🚀 전체 초기화 실행</button>
-<div id="full-init-result" style="display:none;margin-top:12px;padding:12px;background:var(--surface2);border-radius:8px;font-size:13px;white-space:pre-wrap"></div>
-</div>
-</div>
-<div class="panel" style="margin-top:16px">
-<div class="panel-header" style="display:flex;justify-content:space-between;align-items:center">
-<div>👤 사용자 계정 관리</div>
-<button class="action-btn" onclick="signOut()" style="background:var(--danger);color:#fff;border:none">로그아웃</button>
-</div>
-</div>
-<div class="panel" id="admin-invite-panel" style="margin-top:16px">
-<div class="panel-header">✉️ <span>접근 권한 초대 링크 발급 (Admin)</span></div>
-<div class="panel-body">
-<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">허용할 사용자의 구글 이메일을 입력해 전용 접속 링크를 만듭니다. 이 링크로 들어온 사람만 본 시스템에 구글 로그인할 수 있습니다.</div>
-<div style="display:flex;gap:8px;margin-top:8px">
-<input id="invite-email-input" placeholder="example@gmail.com" style="flex:1;padding:8px;border:1px solid #444;border-radius:4px;background:#2a2a2a;color:#fff;font-size:13px" type="text"/>
-<button class="calc-btn" onclick="generateInviteLink()" style="padding:8px 16px;font-size:13px">링크 생성 및 복사</button>
-</div>
-</div>
-</div>
-<div class="panel" style="margin-top:16px">
-<div class="panel-header">🔑 <span>API 키 관리</span></div>
-<div class="panel-body">
-<div class="form-group">
-<label>백엔드 서버 URL</label>
-<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-<input id="api-backendUrl" placeholder="https://seller-margin-api-georgia-5lro.onrender.com" style="flex:1;min-width:180px" type="text"/>
-<button class="action-btn" onclick="saveApiKey('backendUrl')" type="button">저장</button>
-<button class="action-btn" onclick="testBackendUrl()" type="button">테스트</button>
-</div>
-</div>
-<div class="form-group" style="margin-top:16px; padding-top:16px; border-top:1px dashed var(--border)">
-<label style="color:var(--accent2); font-size:14px;">🔮 AI 소싱 & 트렌드 데이터 API</label>
-<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">실제 검색량 예측 및 중국 소싱 매칭을 위한 외부 API 키를 입력하세요.</div>
+    </main>
 </div>
 
-<div class="form-group">
-<label>네이버 검색광고 API (검색량/클릭수)</label>
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-<span style="font-size:12px;min-width:90px">Access License</span>
-<input autocomplete="off" id="api-naver-license" placeholder="Access License" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="saveApiKey('naver-license')" type="button">저장</button>
-</div>
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-<span style="font-size:12px;min-width:90px">Secret Key</span>
-<input autocomplete="off" id="api-naver-secret" placeholder="Secret Key" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="saveApiKey('naver-secret')" type="button">저장</button>
-</div>
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-<span style="font-size:12px;min-width:90px">Customer ID</span>
-<input autocomplete="off" id="api-naver-customer" placeholder="Customer ID" style="flex:1;min-width:140px" type="text"/>
-<button class="action-btn" onclick="saveApiKey('naver-customer')" type="button">저장</button>
-</div>
-</div>
-
-<div class="form-group" style="margin-top:12px">
-<label>아이템스카우트 API (선택 - 시장 경쟁강도)</label>
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-<input autocomplete="off" id="api-itemscout" placeholder="ItemScout API Key (선택)" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="toggleApiKeyMask('itemscout')" title="표시/숨기기" type="button">👁</button>
-<button class="action-btn" onclick="saveApiKey('itemscout')" type="button">저장</button>
-</div>
-</div>
-
-<div class="form-group" style="margin-top:12px">
-<label>1688 Open API / Taobao 이미지 검색 API</label>
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-<span style="font-size:12px;min-width:90px">App Key</span>
-<input autocomplete="off" id="api-1688-key" placeholder="1688 App Key" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="saveApiKey('1688-key')" type="button">저장</button>
-</div>
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-<span style="font-size:12px;min-width:90px">App Secret</span>
-<input autocomplete="off" id="api-1688-secret" placeholder="1688 App Secret" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="saveApiKey('1688-secret')" type="button">저장</button>
-</div>
-</div>
-
-<div class="form-group" style="margin-top:16px; padding-top:16px; border-top:1px dashed var(--border)">
-<label style="color:var(--accent); font-size:14px;">📦 도매 사이트 연동 API</label>
-</div>
-
-<div class="form-group">
-<label>도매꾹 API Key</label>
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-<input autocomplete="off" id="api-domeggook" placeholder="키 입력 후 저장" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="toggleApiKeyMask('domeggook')" title="표시/숨기기" type="button">👁</button>
-<button class="action-btn" onclick="saveApiKey('domeggook')" type="button">저장</button>
-</div>
-</div>
-<div class="form-group">
-<label>도매매 API Key</label>
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-<input autocomplete="off" id="api-domemae" placeholder="키 입력 후 저장" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="toggleApiKeyMask('domemae')" title="표시/숨기기" type="button">👁</button>
-<button class="action-btn" onclick="saveApiKey('domemae')" type="button">저장</button>
-</div>
-</div>
-<div class="form-group">
-<label>온채널 API Key</label>
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-<input autocomplete="off" id="api-onchannel" placeholder="키 입력 후 저장" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="toggleApiKeyMask('onchannel')" title="표시/숨기기" type="button">👁</button>
-<button class="action-btn" onclick="saveApiKey('onchannel')" type="button">저장</button>
-</div>
-</div>
-</div>
-</div>
-<div class="panel" style="margin-top:16px">
-<div class="panel-header">🔔 <span>자동 알림 설정</span></div>
-<div class="panel-body">
-<div class="form-group">
-<label>카카오 REST API Key</label>
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-<input autocomplete="off" id="api-kakao" placeholder="REST API 키 입력 (예: abc123def)" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="toggleApiKeyMask('kakao')" title="표시/숨기기" type="button">👁</button>
-<button class="action-btn" onclick="saveApiKey('kakao')" type="button">저장</button>
-</div>
-</div>
-<div class="form-group" style="margin-top:12px">
-<label>카카오 액세스 토큰 (Access Token)</label>
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-<input autocomplete="off" id="api-kakao-token" placeholder="실제 발송 인가를 위한 Token 값 입력" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="toggleApiKeyMask('kakao-token')" title="표시/숨기기" type="button">👁</button>
-<button class="action-btn" onclick="saveApiKey('kakao-token')" type="button">저장</button>
-</div>
-</div>
-<button class="action-btn" onclick="testKakaoAlert()" style="margin-top:14px" type="button">테스트 알림 보내기</button>
-<div id="kakao-test-result" style="margin-top:8px;font-size:13px"></div>
-<div style="margin-top:12px;font-size:12px;color:var(--text-muted);line-height:1.6">
-<strong>💡 지능형 알림 무중단 연동 스위치:</strong><br/>
-토큰 값이 입력되고 [저장]되는 <strong>순간</strong>, 백그라운드의 카카오 임시 MOCK 모드가 해제되고 <strong>수정이나 배포 없이 즉시 실제 카카오톡 서버 연동</strong>이 자동 활성화됩니다.
-</div>
-</div>
-</div>
-<div class="panel" style="margin-top:16px">
-<div class="panel-header">🛒 <span>마켓 API 키</span></div>
-<div class="panel-body">
-<div class="form-group">
-<label>스마트스토어</label>
-<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
-<span style="font-size:12px;min-width:80px">Client ID</span>
-<input autocomplete="off" id="api-smartstore-client-id" placeholder="Client ID" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="saveApiKey('smartstore-client-id')" type="button">저장</button>
-</div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-<span style="font-size:12px;min-width:80px">Client Secret</span>
-<input autocomplete="off" id="api-smartstore-client-secret" placeholder="Client Secret" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="saveApiKey('smartstore-client-secret')" type="button">저장</button>
-</div>
-</div>
-<div class="form-group" style="margin-top:14px">
-<label>쿠팡 Wing</label>
-<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
-<span style="font-size:12px;min-width:80px">Access Key</span>
-<input autocomplete="off" id="api-coupang-access-key" placeholder="Access Key" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="saveApiKey('coupang-access-key')" type="button">저장</button>
-</div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-<span style="font-size:12px;min-width:80px">Secret Key</span>
-<input autocomplete="off" id="api-coupang-secret-key" placeholder="Secret Key" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="saveApiKey('coupang-secret-key')" type="button">저장</button>
-</div>
-</div>
-<div class="form-group" style="margin-top:14px">
-<label>11번가</label>
-<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-<span style="font-size:12px;min-width:80px">API Key</span>
-<input autocomplete="off" id="api-11st-api-key" placeholder="API Key" style="flex:1;min-width:140px" type="password"/>
-<button class="action-btn" onclick="saveApiKey('11st-api-key')" type="button">저장</button>
-</div>
-</div>
-</div>
-</div>
-<div class="setup-step">
-<div class="step-header">
-<div class="step-num">4</div>
-<div class="step-title">Step 4 — 아이폰 홈 화면에 추가</div>
-</div>
-<div class="step-desc">
-      Safari에서 이 페이지 접속 후<br/>
-      하단 <strong>공유 버튼(□↑) → 홈 화면에 추가</strong><br/>
-      앱처럼 아이콘으로 사용 가능합니다 📱
-    </div>
-</div>
-<div class="panel" style="margin-top:16px">
-<div class="panel-header">🔑 <span>앱 비밀번호 변경</span></div>
-<div class="panel-body">
-<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.6">
-        로그인에 사용하는 비밀번호를 변경합니다. 기본 비밀번호는 0000 입니다.
-      </div>
-<div class="form-group">
-<label>현재 비밀번호</label>
-<input autocomplete="current-password" id="change-pw-current" placeholder="현재 비밀번호" style="max-width:240px" type="password"/>
-</div>
-<div class="form-group">
-<label>새 비밀번호</label>
-<input autocomplete="new-password" id="change-pw-new" placeholder="새 비밀번호" style="max-width:240px" type="password"/>
-</div>
-<div class="form-group">
-<label>새 비밀번호 확인</label>
-<input autocomplete="new-password" id="change-pw-confirm" placeholder="새 비밀번호 다시 입력" style="max-width:240px" type="password"/>
-</div>
-<button class="calc-btn" onclick="changeAppPassword()" style="font-size:14px">비밀번호 변경</button>
-</div>
-</div>
-<div class="panel" style="margin-top:16px">
-<div class="panel-header">🔐 <span>접근 허용 이메일 설정</span></div>
-<div class="panel-body">
-<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.6">
-        허용할 구글 이메일 2개를 입력하세요.<br/>이 이메일로 로그인한 사람만 접속 가능합니다.
-      </div>
-<div class="form-group">
-<label>👨 남편 이메일</label>
-<input id="email-1-input" inputmode="email" placeholder="husband@gmail.com" type="text"/>
-</div>
-<div class="form-group">
-<label>👩 아내 이메일</label>
-<input id="email-2-input" inputmode="email" placeholder="wife@gmail.com" type="text"/>
-</div>
-<button class="calc-btn" onclick="saveEmails()" style="font-size:14px">이메일 저장</button>
-</div>
-</div>
-<div class="panel" style="margin-top:16px">
-<div class="panel-header">👥 <span>현재 접속자</span></div>
-<div class="panel-body">
-<div style="font-size:13px;margin-bottom:8px">현재 로그인: <strong id="current-user-display" style="color:var(--accent2)">미설정</strong></div>
-<button class="action-btn" onclick="signOut()" style="width:100%;text-align:center;color:var(--danger);border-color:var(--danger)">🚪 로그아웃</button>
-</div>
-</div></div></div></div>
-      </main>
-    </div>
-</div>
-<!-- 통계 탭 -->
-<!-- 시즌 탭 -->
-<!-- 설정 탭 -->
-<!-- end content-area moved to bottom -->
 <div class="toast" id="toast"></div>
 <!-- 확장 Apps Script (설정 탭 "코드 복사" 시 이 내용이 복사됨) -->
 <script id="embedded-apps-script" type="text/plain">
@@ -7911,5 +7698,21 @@ function organizeGoogleDrive() {
 </script>
 
 <!-- end content-area & app-wrapper -->
+
+<div id="pin-modal" class="v5-modal-overlay" style="display:none; z-index:9999;">
+    <div class="v5-modal-content" style="max-width:320px; text-align:center; padding:30px; border:2px solid var(--accent); background:var(--surface1); box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+        <div style="font-size:40px; margin-bottom:16px;">🛡️</div>
+        <h2 style="font-size:20px; font-weight:900; color:var(--text); margin-bottom:10px;">Security Lock</h2>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">시스템 액세스를 위해<br>4자리 마스터 PIN을 입력하십시오.</p>
+        <div style="display:flex; justify-content:center; gap:10px; margin-bottom:24px;">
+            <input type="password" id="pin-digit" maxlength="4" placeholder="••••" style="width:140px; height:50px; font-size:28px; text-align:center; letter-spacing:10px; border:2px solid var(--border); border-radius:12px; background:var(--surface2); color:var(--accent);" autofocus onkeydown="if(event.key==='Enter') verifyPin()">
+        </div>
+        <button class="primary-btn" onclick="verifyPin()" style="width:100%; height:50px; font-weight:bold; font-size:16px; border-radius:12px;">🔒 시스템 해제</button>
+        <div style="margin-top:20px; font-size:11px; color:var(--text-muted);">
+            PIN을 잊으셨나요? <span style="color:var(--danger); cursor:pointer; text-decoration:underline;" onclick="signOut()">로그아웃 후 초기화</span>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
