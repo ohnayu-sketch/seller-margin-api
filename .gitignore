@@ -1,12 +1,19 @@
-# API 키 등 비밀 정보 (절대 커밋하지 마세요)
+# API 키 등 비밀 정보
 .env
 backend/.env
 *.gsheet
+*.json
 key/
 
 # 백엔드 및 앱스 스크립트 (별도 관리 영역)
 apps-script/
 scripts/
+
+# 레거시 파일 격리 (V6.0+ 핵심 파일만 관리)
+_archive_legacy/
+v3/
+v4/
+v5/
 
 # 문서 및 로컬 백업 / 지시서 (웹 배포 불필요)
 backup_dashboard/
@@ -21,8 +28,15 @@ frontend/
 github/
 *.md
 !README.md
+!UPDATE_LOG.md
+!SUMMARY.md
 
-# 기타 설정 파일
+# 기타 설정 및 도구 파일
 .cursor/
 .cursorrules
+.agents/
+.vscode/
+.venv/
+__pycache__/
+*.pyc
 업데이트_자동화.bat

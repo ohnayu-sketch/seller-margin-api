@@ -1,0 +1,130 @@
+# V5 운영 파이프라인 정비 및 UI 개편 작업 (현장/해외 소싱 탭 분리 반영)
+
+## 문서 종합 및 계획 수립
+- [x] v3/v4/v4_backup 문서 종합 분석 (23개)
+- [x] V5 HTML/JS 구조 분석
+- [x] UI 개편 및 추가 기능 포함 구현 계획서 작성
+- [x] Phase 1: Design System Base (CSS)
+    - [x] 전역 변수 및 글래스모피즘 테마 정의
+    - [x] 모던 타이포그래피 (Outfit, Inter) 적용
+    - [x] 탭 전환 및 마이크로 애니메이션 구현
+- [x] Phase 2: Step 1 → Step 2 Pipeline & 30-Item Grid
+    - [x] `tab_sourcing.html` 그리드 및 키워드 확장 UI 추가
+    - [x] `main.js` 통합 검색 결과 렌더링 로직 (30개 그리드)
+    - [x] 시뮬레이터 데이터 연동 필드 (시장 최저가/평균가/AI 점수)
+- [x] **HTML 구조 및 스타일 복원** ([seller-dashboard-v5.html](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html))
+    - [x] 오프라인 현장 사입 (`page-field`) 및 해외 직구 (`page-global`) 탭 영역 컨테이너 재생성
+    - [x] `v5-field-cost`, `v5-field-moq` 등 신규 id 기반 입력 폼 적용
+    - [x] 공급업체 등록 모달 (`vendor-modal`) HTML 끝단 복구 (UTF-8 인코딩)
+- [x] **관제/저장 로직 통합** ([seller-dashboard-v5.html](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html) inline JS)
+    - [x] V5 폼 규격에 맞는 [showVendorForm](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#2175-2202) 및 [saveVendor](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#2208-2244) 로직 치환
+    - [x] 사입 원장 기록용 [saveDirectSourcingNote](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#2080-2118) 함수 신설 및 교체 완료 (이중 선언 구버전 제거)
+- [x] **상단 탭 V5 파이프라인 기반 통폐합**
+    - [x] `page-sourcing` 안에 서브 탭 메뉴 (현장/글로벌 단축 패널) 생성
+    - [x] `page-simulator`, `page-ledger`, `page-finance` 최상위 노출 전환
+- [x] **기능 점검 및 브라우저 테스트 (네비게이션 검증)**
+    - [/] [saveProduct()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#7794-7819) 고도화 (시장 인텔리전스 저장)
+    - [ ] 위탁→사입 전환 시뮬레이션 버튼 및 로직
+    - [ ] 해외 사입(Landed Cost) 계산 엔진 정교화
+- [x] Phase 4: Stage 3 ~ 5 Functional Refinement
+    - [x] 통합 상품 장부(Step 3) 렌더링 고도화 ([renderList](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#3255-3375), [renderSalesTable](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#3437-3490))
+    - [x] 재무 인사이트(Step 4) 모킹 제거 및 실데이터(Accounting + Sales) 연동
+    - [x] Chart.js를 이용한 매출/이익 트렌드 및 마켓 비중 시각화 구현
+- [x] Phase 5: Overall Verification and Finalization
+    - [x] 전체 파이프라인(Sourcing -> Simulator -> Ledger -> Finance) 데이터 흐름 검증
+    - [x] Glassmorphism UI 디테일 및 반응형 레이아웃 최종 점검
+    - [x] 사용자 가이드(walkthrough.md) 작성 및 최종 보고
+- [x] Phase 6: Offline Sourcing (현장 사입 모바일 비전 검색 연동)
+    - [x] `tab_sourcing.html`에 모바일 현장 발굴 하위 뷰(Camera Mode) 추가
+    - [x] 카메라 사진 촬영 및 Base64 이미지 렌더링 체계 구축
+    - [x] AI 비전(Vision API) 및 이미지 검색 연동 기반 형태/유사상품 도출 모킹
+    - [x] 스캔 이미지 시뮬레이터 현장 모드 자동 연동
+- [x] Phase 7: 현장/해외 소싱 탭 분리 및 V4 업체 정보 기록 기능 이식
+    - [x] [seller-dashboard-v5.html](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html)의 탭(상위 카테고리)을 개편하여 '현장 사입'과 '해외 소싱'을 별도 탭으로 분리
+    - [x] V4의 왼쪽 고정 창에 있던 '사입(현장)' 기능(업체 정보, 연락처, MOQ, 현장 사진 기록 및 목록)을 V5의 '현장 사입' 탭으로 완전 이식
+    - [x] 기존 통합 시뮬레이터 탭 내에 있던 '글로벌 소싱(관세/물류비/해외 배대지 등)' 기능을 신규 '해외 소싱' 탭으로 이전
+- [x] Phase 1~7: V5 UI 파이프라인 정비 및 관제 로직 뼈대 완성 (HTML/JS 기본 통합 및 탭 네비게이션 복구)
+    - [x] 로그인 오버레이 우회 로직 레이스 컨디션 방어 코드 주입 (강제 렌더링 락)
+
+## V6.0 마스터 설계 (Dynamic Expansion UI) 고도화
+- [/] Phase 1: 백엔드 관세/환율 모듈 확장 ([v3/backend/main.py](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/v3/backend/main.py))
+    - [ ] 한국수출입은행/고시환율 등 모의/실제 환율 API 연동 유틸리티 생성
+    - [ ] T1 ➔ T2 관통을 위한 Landed Cost 산출 공식 구현 [(현지 단가 × 실시간 환율) + 예상 관/부가세(HS-CODE 기반) + 해외 물류비 + 배대지 수수료](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#6264-6268)
+- [x] Phase 2: 프론트엔드 상태 머신 및 DOM 구조 강제 개편 ([seller-dashboard-v5.html](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html))
+    - [x] T1 내 State A(대기 모드) / State B(폭발 전개 모드)를 관장하는 가상 DOM 클래스([StateManager](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#6230-6246)) 구축
+    - [x] Flex -> Grid로 반응형 4~6열 30구역 CSS 아키텍처 재설계 (`!important` 지양, 다크 테마 유지)
+    - [x] 로딩 중 스켈레톤 UI (Skeleton Loading) 삽입
+    - [x] Hydration 2.0 규칙 적용 (탭 복구 ➔ Input 데이터 복구 ➔ 렌더링 순차 보존)
+- [x] Phase 3: 데이터 표준 규격 어댑터(Middleware) 및 EventBus 도입
+    - [x] JS EventBus 기반 T1 ➔ T2 Observer 패턴 설계 (결합도 완화)
+    - [x] [StandardProductInfo](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#6331-6341) 단일 규격 변환 미들웨어 철저 적용
+- [x] Phase 4: T1~T5 각 탭 State A/B 동적 뷰포트 UI 이식
+    - [x] T2(재고 사입), T3(통합 자산 장부), T4(재무 인사이트), T5(시스템 설정) 단계별 State 숨김/전개 로직 이식
+- [ ] Phase 5: 전체 파이프라인 최종 점검 (백엔드 API 및 프론트 통신)
+
+## [기존] Phase 8 이후 고급 운영 파이프라인 (V6.0과 동시/후속 수용)
+- [ ] Phase 8: Advanced Sourcing (고급 소싱 및 네이버/도매꾹 API 연동)
+    - [ ] `setup.html` / `api.js`에 네이버 API, 도매꾹 API 입력/인증 로직 구현
+    - [ ] 네이버 데이터랩(쇼핑인사이트/검색어트렌드) API 연동하여 세부 카테고리 필터링 조회 구현
+    - [ ] 도매꾹 API 연동 (실시간 원가 및 재고 스캔)
+    - [ ] 묶음 상품(A+B 장바구니) 및 기획전 마진 시뮬레이터 개발
+    - [ ] 발굴된 아이템 런칭 일정을 네이버 캘린더 API를 통해 자동 등록
+- [ ] Phase 9: 통합 멀티마켓 초광역 OMS시스템
+    - [ ] 단일 탭 `tab_oms.html` (주문/발주/배송/CS 통합 관리) 구축
+    - [ ] 투트랙 모델 아키텍처 구현: 위탁(대량 수집/발주 스피드전) vs 사입(채널별 수수료 역산 정밀 마진전)
+    - [ ] 국내(스마트스토어, 쿠팡, 11번가, 카카오 등) 및 해외(쇼피 등) 10+개 마켓 Open API 주문 수집 체계 연동
+    - [ ] 수집된 주문 정보를 기반으로 도매처(도매꾹 등) 자동/벌크 발주 전송
+    - [ ] 배송 현황 추적 (운송장 송신) 및 CS 클레임 동기화 로직 구현
+    - [ ] 대량 판매 발생 시 소싱장부(Ledger) 재고 실시간 차감 및 실적(회계) 자동 연동
+- [ ] Phase 9: 글로벌 해외 마켓 모듈 독립화
+    - [ ] 해외 소싱 상품 데이터 구조 별도 분리 (`isOverseas` 플래그 등 적용)
+    - [ ] 다중 물류비(해운/항공, 통관 수수료 등) 및 환율 변동 연동 전용 대시보드 구축
+- [x] **Phase 12: 통합 마케팅 & 미디어 자동화 (T6 탭 신설)**
+    - [x] T5 설정 탭 내 Vision API & Gemini API 로컬 보안 금고(Vault) 레이아웃 추가
+    - [x] T6 미디어 스튜디오 탭(상단/하단 네비게이션 포함) 구성 요소 주입
+    - [x] 'AI 생성 스크립트 에디터' 및 숏폼 결과물 미리보기 인터페이스 (CSS Grid)
+    - [x] [🚨 AI 위험 감지] 컴플라이언스(HITL) 강제 일시 정지용 경고 모달 설계
+    - [x] FastAPI 백엔드([backend/main.py](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/v3/backend/main.py)) 내 이미지 Inpainting용 `/vision-clean` 라우트 신설
+    - [x] FastAPI 백엔드([backend/main.py](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/v3/backend/main.py)) 내 Gemini 기반 카피라이팅용 `/generate-copy` 라우트 신설
+
+🚨 **[긴급 핫픽스: 전체 렌더링 마비 사태 복구 및 DOM 무결성 확보]**
+- [x] T1 ➔ T2 ➔ T3 ➔ T4 ➔ T5 ➔ T6 탭 네비게이션 재정렬 및 [showTab](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#1649-1677) 로직 핫픽스
+- [x] 시뮬레이터 탭 철거 및 T2(재고/사입 관제) 하위 탭(현장 사입, 해외 소싱) 통폐합 구축
+- [x] T3(자산 장부) 데이터 리스트 패널 복구
+- [x] T4(재무 인사이트) Tax Pivot Table(세액 대조) 및 현금흐름 대시보드 렌더링 검증 및 복구
+- [x] T5(시스템 설정) 클릭 먹통 해결 및 API Key Vault(소싱/발주/미디어) 3단계 UI 출력 확인
+- [x] T6(마케팅 스튜디오) AI 에디터 및 미리보기 CSS Grid/Flex 표시 확인
+
+🚀 **[전면 구조조정: V6.0 파이프라인 복구 및 투트랙 UI 구축]**
+- [x] **과업 1: DOM 격리 및 이동**
+  - [x] T1에서 하위 탭 호출 버튼 삭제
+  - [x] `vendor-modal` 전역 고정 해제 및 T2 `t2-view-field` 내부에 종속(Encapsulation)
+- [x] **과업 2: 미들웨어 및 EventBus 복원**
+  - [x] [StandardProductInfo](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#6331-6341) 데이터 규격 객체 및 `AppEventBus` 구현
+  - [x] T1 [소싱 확정] 버튼 클릭 시 EventBus를 통한 T2 데이터 전송 라우팅 복구
+- [x] **과업 3: T1 투트랙 검색 아키텍처 (Dual-Engine)**
+  - [x] 상단(Reactive): 통합 검색창 및 연관 검색어 뱃지 UI 배치
+  - [x] 하단(Proactive): 백그라운드 스크래핑 큐레이션(15% 이상 기회상품) 30구역 고밀도 그리드 렌더링
+
+- [ ] Phase 10: AI 상세페이지 및 카피라이팅 자동 생성
+    - [ ] 도매처 대표 이미지 및 기본 스펙 수집 로직 연동
+    - [ ] 소구 포인트 중심의 블로그형/마켓형 판매 문구 생성 AI 프롬프트 체계 구축
+    - [ ] (초안) 상세페이지 HTML/이미지 배열 렌더러 구현
+    - [ ] 소싱 ➡️ 에디팅 ➡️ 마켓(스마트스토어 등) 원클릭 등록 파이프라인 연계
+- [ ] Phase 11: 통합 공급처 방대한 DB (Supplier Directory)
+    - [ ] 국내 10여개 B2B (도매꾹, 온채널, 펀앤 등) 및 해외(1688, 테무 등) 소싱처 API/크롤링 아카이빙 뷰 구축
+    - [ ] 다이렉트 직거래처(제조사/총판) 연락처, MOQ, 독점조건 등 CRM 커스텀 DB 연동
+    - [ ] 소싱장부 상품 데이터 ↔ 외부 공급처/직거래처 간 원클릭 딥링크 매핑 로직 구현
+
+## 4단계: Finance 실데이터 연동 & Tax Pivot
+- [ ] `initFinanceDashboard()` — Mock 데이터 제거 및 Apps Script 실데이터 바인딩
+- [ ] Tax Pivot Table (간이↔일반 세액 대조) 구현
+- [ ] Miller-Orr 현금흐름 시뮬레이션 위젯 추가
+
+## 5단계: 운영 자동화 고도화
+- [ ] Image OCR 기반 영수증/증빙 자동 입력
+- [ ] FIFO(선입선출) 재고 단가 엔진 연동
+
+## 검증 및 폴리싱
+- [ ] 전 과정 파이프라인 데이터 정합성 테스트
+- [ ] UI/UX 미세 조정 (애니메이션, 모바일 대응)
