@@ -1478,13 +1478,19 @@ function resetSessionTimer() {
 function showPinModal() {
     const modal = document.getElementById('pin-modal');
     if (modal) {
+        // 모달을 body 직계 자식으로 이동 (app-wrapper의 blur/pointer-events 영향 차단)
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
         modal.style.display = 'flex';
+        modal.style.opacity = '1';
+        modal.style.pointerEvents = 'auto';
         // PIN 입력창에 자동 포커스 (100ms 지연으로 브라우저 렌더링 보장)
         setTimeout(function() {
             const pinInput = document.getElementById('pin-digit');
             if (pinInput) { pinInput.value = ''; pinInput.focus(); }
-        }, 100);
-        // 배경 앱을 블러 처리 (opacity 대신 filter 사용으로 모달 가시성 확보)
+        }, 150);
+        // 배경 앱을 블러 처리
         const wrapper = document.getElementById('app-wrapper');
         if (wrapper) {
             wrapper.style.filter = 'blur(8px)';
@@ -7780,6 +7786,10 @@ function organizeGoogleDrive() {
 }
 </script>
 
+      </main>
+    </div>
+  </div>
+</div>
 <!-- end content-area & app-wrapper -->
 
 <div id="pin-modal" class="v5-modal-overlay" style="display:none; z-index:9999;">
