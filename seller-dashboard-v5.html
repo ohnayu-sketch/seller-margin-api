@@ -1722,20 +1722,34 @@ async function syncStateAndRender(name) {
 
 function showTab(name) {
   try { localStorage.setItem('lastTab', name); } catch(e) {}
+
+  // V5 표준 탭 ID 목록 (7개 전수 대응)
+  const V5_TABS = ['sourcing', 'inventory', 'ledger', 'finance', 'studio', 'oms', 'setup'];
+
+  // 상단 메인 탭 활성화 (.tab)
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', TAB_IDS[i] === name);
+    if (V5_TABS[i]) t.classList.toggle('active', V5_TABS[i] === name);
   });
-  document.querySelectorAll('.tab-bar-item').forEach((t, i) => {
-    t.classList.toggle('active', TAB_IDS[i] === name);
+
+  // 하단 퀵 모바일 탭 바 활성화 (.tab-bar-item)
+  document.querySelectorAll('.tab-bar-item').forEach(t => {
+    t.classList.toggle('active', t.getAttribute('data-tab') === name);
   });
-  document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.opacity = ''; });
-  const page = document.getElementById('page-' + name);
-  if (page) {
-    page.classList.add('active');
-    page.style.opacity = '0';
-    requestAnimationFrame(() => { requestAnimationFrame(() => { page.style.opacity = '1'; }); });
+
+  // 모든 페이지 섹션 숨기기 및 선택 페이지 노출
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none';
+    p.style.opacity = '1'; // 불필요한 트랜지션 간섭 제거
+  });
+
+  const targetPage = document.getElementById('page-' + name);
+  if (targetPage) {
+    targetPage.classList.add('active');
+    targetPage.style.display = 'block';
   }
 
+  // 설정 탭(T7) 진입 시 보안 및 API 데이터 로드
   if (name === 'setup') {
     const e1 = localStorage.getItem('allowed-email-1') || '';
     const e2 = localStorage.getItem('allowed-email-2') || '';
@@ -1746,7 +1760,10 @@ function showTab(name) {
     if (typeof loadApiKeys === 'function') loadApiKeys();
   }
 
-  syncStateAndRender(name);
+  // 핵심 비즈니스 로직 렌더링 동기화
+  if (typeof syncStateAndRender === 'function') {
+    syncStateAndRender(name);
+  }
 }
 
 // ==================== CALCULATE ====================
@@ -4028,7 +4045,8 @@ let _statsCharts = { monthly: null, doughnut: null, bar: null };
 async function renderStats() {
   const n = products.length;
   const sellingCount = products.filter(p => String(p.sellDecision || 'N').toUpperCase() === 'Y' || p.sellDecision === true).length;
-  document.getElementById('stat-total').textContent = n;
+  const totalEl = document.getElementById('stat-total');
+  if (totalEl) totalEl.textContent = n;
   const convEl = document.getElementById('stat-conversion');
   if (convEl) convEl.textContent = n > 0 ? (sellingCount / n * 100).toFixed(1) + '%' : '—';
 
@@ -4066,8 +4084,10 @@ async function renderStats() {
   }
   const avg = products.reduce((s,p) => s + parseFloat(p.margin), 0) / n;
   const bestP = Math.max(...products.map(p => parseInt(p.profit) || 0), 0);
-  document.getElementById('stat-avg').textContent = fmtPct(avg);
-  document.getElementById('stat-best-profit').textContent = fmt(bestP) + '원';
+  const avgEl = document.getElementById('stat-avg');
+  if (avgEl) avgEl.textContent = fmtPct(avg);
+  const bestEl = document.getElementById('stat-best-profit');
+  if (bestEl) bestEl.textContent = fmt(bestP) + '원';
   salesRecords = appState.sales || []; // Ensure sync from appState
   let records = salesRecords;
 
@@ -6633,7 +6653,15 @@ window.t1State = new T1StateManager();
         <div class="panel" style="flex:1;">
             <div class="panel-header">📊 AI 소싱 성과 및 전환율</div>
             <div class="panel-body">
+                <div class="stats-mini-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; margin-bottom:15px;">
+                    <div class="stat-mini-card"><label>총 상품수</label><span id="stat-total">0</span></div>
+                    <div class="stat-mini-card"><label>평균 마진</label><span id="stat-avg">0%</span></div>
+                    <div class="stat-mini-card"><label>최고 이익</label><span id="stat-best-profit">0원</span></div>
+                    <div class="stat-mini-card"><label>종합 전환율</label><span id="stat-conversion">0%</span></div>
+                </div>
                 <div id="stats-conversion-detail" style="font-size:13px;color:var(--text-muted); margin-bottom:10px;"></div>
+                <div id="top5-list" style="margin-top:10px;"></div>
+                <div id="market-stats" style="display:none;"></div>
                 <div id="stats-top-products" style="font-size:12px;"></div>
             </div>
         </div>

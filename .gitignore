@@ -7,7 +7,6 @@ key/
 
 # 백엔드 및 앱스 스크립트 (별도 관리 영역)
 apps-script/
-scripts/
 
 # 레거시 파일 격리 (V6.0+ 핵심 파일만 관리)
 _archive_legacy/
