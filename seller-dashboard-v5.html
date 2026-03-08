@@ -1581,6 +1581,7 @@ function onAuthSuccess(email, name) {
 
 const originalShowTab = window.showTab;
 window.showTab = function(name) {
+    // T7(setup)은 관리자만 접근 가능
     if (name === 'setup') {
         const userEmail = (localStorage.getItem('auth-email') || '').toLowerCase();
         if (!ADMIN_EMAILS.includes(userEmail)) {
@@ -1588,15 +1589,22 @@ window.showTab = function(name) {
             return;
         }
     }
-    // 원본 showTab 호출 (탭 하이라이트 + 페이지 전환 + 하단 탭바 동기화)
-    if (typeof originalShowTab === 'function') {
-        originalShowTab(name);
-    }
 
-    // Resize Fix for Chart.js
+    // === 모든 페이지 숨김 ===
+    const pages = document.querySelectorAll('.page');
+    pages.forEach(p => {
+        p.classList.remove('active');
+        p.style.display = 'none';
+        p.style.opacity = '0';
+    });
+
+    // === 대상 페이지 표시 ===
     const page = document.getElementById('page-' + name);
     if (page) {
+        page.style.display = 'block';
+        page.classList.add('active');
         requestAnimationFrame(() => {
+            page.style.opacity = '1';
             window.dispatchEvent(new Event('resize'));
             if (name === 'finance' && typeof syncStateAndRender === 'function') {
                 syncStateAndRender('finance');
@@ -1604,11 +1612,25 @@ window.showTab = function(name) {
         });
     }
 
-    // 상단 내비게이션 활성화
+    // === 상단 탭 하이라이트 ===
+    const V5_TABS = ['sourcing', 'inventory', 'ledger', 'finance', 'studio', 'oms', 'setup'];
+    document.querySelectorAll('.tab').forEach((t, i) => {
+        if (V5_TABS[i] !== undefined) {
+            t.classList.toggle('active', V5_TABS[i] === name);
+        }
+    });
+
+    // === 상단 내비게이션 링크 활성화 ===
     const links = document.querySelectorAll('.nav-links a');
     links.forEach(l => {
         l.classList.remove('active');
         if (l.getAttribute('onclick')?.includes(`'${name}'`)) l.classList.add('active');
+    });
+
+    // === 하단 탭바 동기화 ===
+    document.querySelectorAll('.tab-bar-item').forEach(item => {
+        const onclickAttr = item.getAttribute('onclick') || '';
+        item.classList.toggle('active', onclickAttr.includes(`'${name}'`));
     });
 
     localStorage.setItem('lastTab', name);
@@ -6598,7 +6620,7 @@ window.t1State = new T1StateManager();
 <h2 style="color:#38bdf8; margin-bottom:15px; font-weight:900;">시스템 자가 복구</h2>
 <p style="color:white; font-size:13px; margin-bottom:20px; line-height:1.6;">페이지 초기화가 지연되거나 중단되었습니다.<br/>데이터 초기화 후 다시 시작하시겠습니까?</p>
 <button onclick="localStorage.clear();sessionStorage.clear();location.reload();" style="padding:14px; background:#38bdf8; color:black; border:none; border-radius:8px; font-weight:700; cursor:pointer; width:100%;">캐시 초기화 후 재시작</button>
-<button onclick="document.getElementById('rescue-ui').style.display='none';" style="margin-top:12px; background:transparent; border:none; color:var(--text-muted); font-size:12px; cursor:pointer;">무시하고 기다리기</button>
+<button onclick="document.getElementById('rescue-ui').style.display='none'; if(typeof showPinModal==='function') showPinModal();" style="margin-top:12px; background:transparent; border:none; color:var(--text-muted); font-size:12px; cursor:pointer;">무시하고 기다리기</button>
 </div>
 </div>
 <!-- 앱 전체 래퍼 -->
@@ -7185,6 +7207,9 @@ window.t1State = new T1StateManager();
 </div>
 </div>
 </div>
+</div> <!-- /#page-ledger calc-container -->
+</div> <!-- /#page-ledger calc-left-pane -->
+</div> <!-- /#page-ledger -->
         <div class="page" id="page-finance">
   <!-- 핵심 금융 지표 요약 (Phase 5) -->
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px;">
