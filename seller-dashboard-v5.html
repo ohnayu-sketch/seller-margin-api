@@ -1564,7 +1564,7 @@ function onAuthSuccess(email, name) {
 
     let lastTab = localStorage.getItem('lastTab');
     if (!lastTab || lastTab === 'null' || lastTab === 'undefined' || !TAB_IDS.includes(lastTab)) {
-      lastTab = 'intel';
+      lastTab = 'sourcing';
     }
     showTab(lastTab);
 
@@ -1586,32 +1586,23 @@ window.showTab = function(name) {
             return;
         }
     }
+    // 원본 showTab 호출 (탭 하이라이트 + 페이지 전환 + 하단 탭바 동기화)
+    if (typeof originalShowTab === 'function') {
+        originalShowTab(name);
+    }
 
-    // Original Tab Logic with Resize Fix
-    const pages = document.querySelectorAll('.page');
-    pages.forEach(p => {
-        p.classList.remove('active');
-        p.style.display = 'none';
-        p.style.opacity = '0';
-    });
-
+    // Resize Fix for Chart.js
     const page = document.getElementById('page-' + name);
     if (page) {
-        page.style.display = 'block';
-        page.classList.add('active');
-
-        // Ensure DOM is ready for layout calculations (Fix for Chart.js)
         requestAnimationFrame(() => {
-            page.style.opacity = '1';
             window.dispatchEvent(new Event('resize'));
-
-            // If it's finance tab, particularly force chart updates
             if (name === 'finance' && typeof syncStateAndRender === 'function') {
                 syncStateAndRender('finance');
             }
         });
     }
 
+    // 상단 내비게이션 활성화
     const links = document.querySelectorAll('.nav-links a');
     links.forEach(l => {
         l.classList.remove('active');
