@@ -764,29 +764,25 @@ window.LogisticsEngine = LogisticsEngine;
 <script>
 window.onerror = function(msg, url, lineNo, columnNo, error) {
       console.error('Fatal Error:', msg, 'at', lineNo + ':' + columnNo, error);
+      // PIN 인증 완료 후(appReady=true)에는 rescue-ui를 띄우지 않음 (비치명적 오류 무시)
+      if (window.appReady) return false;
       try {
         const loader = document.getElementById('loading');
         if (loader) loader.style.display = 'none';
-        const rescue = document.getElementById('rescue-ui');
-        if (rescue) rescue.style.display = 'flex';
       } catch(e) {}
-
-      const d = document.getElementById('fatal-error-overlay');
-      if (d) {
-        d.style.display = 'flex';
-        const msgEl = document.getElementById('fatal-error-msg');
-        if (msgEl) msgEl.innerHTML = '🔥 치명적 오류 발생:<br>' + (msg||'알 수 없는 에러') + '<br>줄: ' + lineNo + ':' + columnNo + '<br>' + (error && error.stack ? '<pre style="font-size:10px;margin-top:10px;white-space:pre-wrap;text-align:left;max-height:150px;overflow:auto;">'+error.stack+'</pre>' : '');
-      }
       return false;
     };
-    // Rescue Timer: 15초 내에 appReady가 안되면 강제 팝업 (로그인 전/후 로딩 지연 대비)
+    // Rescue Timer: PIN 모달 대기 시간 포함 60초로 연장
     window._rescueTimer = setTimeout(() => {
-      if (!window.appReady) {
+      // PIN 모달이 열려있거나 appReady가 true이면 rescue-ui를 띄우지 않음
+      const pinModal = document.getElementById('pin-modal');
+      const pinVisible = pinModal && pinModal.style.display !== 'none';
+      if (!window.appReady && !pinVisible) {
         console.warn('[Rescue] Initializing too slow or crashed. Showing Rescue UI.');
         const rescue = document.getElementById('rescue-ui');
         if (rescue) rescue.style.display = 'flex';
       }
-    }, 15000);
+    }, 60000);
 
 
 
@@ -1509,6 +1505,12 @@ function verifyPin() {
             wrapper.style.filter = 'none';
             wrapper.style.pointerEvents = 'auto';
         }
+        // Rescue 타이머 취소 및 appReady 설정
+        window.appReady = true;
+        if (window._rescueTimer) { clearTimeout(window._rescueTimer); window._rescueTimer = null; }
+        // rescue-ui가 이미 표시된 경우 강제 숨김
+        const rescueEl = document.getElementById('rescue-ui');
+        if (rescueEl) rescueEl.style.display = 'none';
         showToast('인증되었습니다. 대시보드 액세스를 허용합니다.');
         resetSessionTimer();
     } else {
