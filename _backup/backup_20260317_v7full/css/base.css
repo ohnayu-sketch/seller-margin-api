@@ -1,0 +1,313 @@
+/* ═══ base.css ═══ */
+/* :root 변수, 리셋, body, 탭 네비게이션, 레이아웃 기본 */
+
+:root {
+    /* Core Background & Surfaces */
+    --bg: #0d1117;
+    --surface: rgba(22, 25, 32, 0.7);
+    --surface2: rgba(30, 34, 48, 0.7);
+    --surface3: rgba(42, 47, 63, 0.5);
+    --border: rgba(255, 255, 255, 0.1);
+
+    /* Vibrant Color Palette */
+    --text: #f0f6fc;
+    --text-muted: #8b949e;
+    --accent: #4ade80;        /* Neon Green */
+    --accent2: #3b82f6;       /* Electric Blue */
+    --accent-glow: rgba(74, 222, 128, 0.3);
+    --accent2-glow: rgba(59, 130, 246, 0.3);
+
+    --warn: #f59e0b;
+    --danger: #f85149;
+    --smart: #4ade80;
+    --coupang: #ff6900;
+    --open: #a78bfa;
+
+    /* Glassmorphism & Effects */
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --blur: blur(12px);
+    --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 12px 48px 0 rgba(0, 0, 0, 0.6);
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+
+  .header-right { display: flex; align-items: center; gap: 12px; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+
+  /* TABS (상단 — 데스크톱용 유지, 모바일에서 숨김) */
+  .tabs { display: none; }
+
+  @media (min-width: 768px) {
+    .tabs {
+      display: flex;
+      background: rgba(var(--surface-rgb, 255,255,255), 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      gap: 4px;
+      position: sticky;
+      top: 56px;
+      z-index: 100;
+    }
+    .tab { padding: 12px 16px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-bar { display: none !important; }
+  }
+
+
+  /* 하단 탭바 (모바일 우선) */
+  .tab-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 72px;
+    background: rgba(26, 29, 36, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 1000;
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: 10px;
+    padding-right: 10px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .tab-bar-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    transition: color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .tab-bar-item .tb-icon { font-size: 22px; }
+
+  .tab-bar-item .tb-label { display: none; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+  .tab-bar-item.active { color: var(--accent); }
+
+  .tab-bar-item.active .tb-label { display: block; }
+
+
+  /* PAGES */
+  .page {
+    display: none;
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  /* #page-sourcing max-width 통일 (1400px) — 별도 지정 불필요 */
+  .page.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+
+  /* BUTTONS */
+  .calc-btn { width: 100%; padding: 14px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: 900; font-size: 16px; cursor: pointer; transition: all 0.15s; font-family: 'Noto Sans KR', sans-serif; margin-top: 4px; }
+
+  .calc-btn:active { opacity: 0.8; transform: scale(0.98); }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @keyframes pulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+
+  /* LOGIN SCREEN */
+  .login-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 500;
+    background-image: radial-gradient(ellipse at 20% 50%, rgba(74,222,128,0.05) 0%, transparent 60%),
+                      radial-gradient(ellipse at 80% 20%, rgba(56,189,248,0.05) 0%, transparent 60%);
+  }
+
+  .login-screen.hidden { display: none; }
+
+  .login-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 40px 36px; width: 320px; text-align: center;
+    position: relative; overflow: hidden;
+  }
+
+  .login-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+
+  .login-logo { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; }
+
+  .login-logo-dot { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+
+  .login-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; margin-top: 8px; line-height: 1.6; }
+
+  .login-notice { margin-top: 16px; font-size: 11px; color: var(--text-muted); }
+
+
+  @media (min-width: 600px) {
+    .page { padding: 24px 28px; }
+    .product-cards { grid-template-columns: repeat(2, 1fr); }
+  }
+
+
+  /* SOURCING PAGE LAYOUT */
+  .calc-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  @media (min-width: 900px) {
+    .calc-container {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .calc-left-pane {
+      position: sticky;
+      top: 80px; /* Reduced from 120 so it feels more "fixed" */
+      height: fit-content;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      z-index: 10;
+    }
+  }
+
+
+
+
+        .calc-container { display: flex; flex-direction: row; width: 100%; align-items: flex-start; }
+
+        .main-content { flex-grow: 1; min-width: 0; }
+
+        @media (max-width: 900px) {
+          .calc-container { flex-direction: column; }
+          .global-sidebar { width: 100%; height: auto !important; position: static !important; }
+        }
+
+/* ★ FORCED DARK MODE — 라이트모드 전환 비활성화 (다크 전용 앱)
+   원본은 시스템 라이트모드 감지 시 화이트 배경으로 전환했으나, 항상 다크모드 유지
+*/
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 0.3; }
+    100% { opacity: 0.6; }
+}
+
+
+@media (max-width: 600px) {
+    .v5-score-section { flex-direction: column; text-align: center; }
+    .v5-action-area { grid-template-columns: 1fr; }
+}
+
+
+  @media (min-width: 768px) {
+    .ledger-grid { display: block; }
+    .ledger-card { display: none; } /* Hide mobile cards on desktop */
+    .ledger-desktop-table { display: table; width: 100%; border-collapse: collapse; }
+    .ledger-desktop-table th, .ledger-desktop-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .ledger-desktop-table th { color: var(--text-muted); font-weight: 600; }
+  }
+
+  @media (max-width: 767px) {
+    .ledger-desktop-table { display: none; } /* Hide desktop table on mobile */
+  }
+
+
+
+        /* GNB Visibility Fixes */
+        .tab-bar { display: none; }
+
+        .tabs { display: flex; }
+
+        @media (max-width: 768px) {
+            .tabs { display: none !important; }
+            .tab-bar { display: flex !important; }
+        }
+/* ═══ Security Lock Modal — 화면 중앙 오버레이 ═══ */
+.v5-modal-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 9999;
+}
+
+.v5-modal-content {
+    border-radius: 20px;
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ═══ 탭 다크모드 강화 ═══ */
+.tabs {
+    background: rgba(13, 17, 23, 0.95) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.tab {
+    color: #8b949e !important;
+    border-bottom: 2px solid transparent !important;
+    transition: all 0.2s ease !important;
+}
+.tab:hover {
+    color: #c9d1d9 !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+}
+.tab.active {
+    color: #4ade80 !important;
+    border-bottom-color: #4ade80 !important;
+    background: rgba(74, 222, 128, 0.06) !important;
+}

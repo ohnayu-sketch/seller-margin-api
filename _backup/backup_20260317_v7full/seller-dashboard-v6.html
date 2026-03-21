@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<!-- [Phase 4] Chart.js CDN for T6 Finance 렌더링 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Google One Tap 로그인 -->
+<script async defer src="https://accounts.google.com/gsi/client"></script>
+<!-- XLSX 엑셀 처리 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/core/event-bus.js"></script>
+<script src="js/core/system-logger.js"></script>
+<script src="js/core/fetch-gas.js"></script>
+<script src="js/core/config.js"></script>
+<script src="js/core/ui-helpers.js"></script>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0" name="viewport"/>
+<!-- [REMOVED] 기존 config.js → js/core/config.js로 통합 -->
+<script src="js/sourcing-feed.js"></script>
+<script src="js/core/block-0.js"></script>
+<script src="js/core/block-1.js"></script>
+<script src="js/core/block-2.js"></script>
+<script src="js/core/block-3.js"></script>
+<script src="js/core/block-4.js"></script>
+<script src="js/core/block-5.js"></script>
+<script src="js/core/mega-block.js"></script>
+
+<!-- [REMOVED] 중복 head 태그 (원래 L7474~7482): 파일 상단에 이미 동일 태그 존재. body 내부 중복 삽입으로 파서 교란 원인 -->
+
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/t1-sourcing.css">
+<link rel="stylesheet" href="css/t2-inventory.css">
+<link rel="stylesheet" href="css/t5-studio.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/tabs.css">
+<link rel="stylesheet" href="css/t6-t3-t4-t7.css">
+<link rel="stylesheet" href="css/t1-trend-t5-register.css">
+<!-- [Phase 4] Infrastructure: GASAdapter, ImageResizer, StateManagers -->
+<script src="js/core/infra.js"></script>
+<!-- [Phase 2 & 3] EventBus & StateManager -->
+<!-- [MERGED] eventbus-legacy.js → event-bus.js에 병합됨 -->
+</head>
+<body>
+<!-- STUDIO ASYNC OVERLAY (V5.5) -->
+<div class="studio-overlay" id="studio-overlay" style="display:none;">
+  <div class="spinner"></div>
+  <div class="status-text" id="studio-overlay-text">⏳ AI가 상세페이지와 숏폼 영상을 굽고 있습니다...</div>
+  <div class="sub-text">백그라운드 작업 중 — 대시보드를 자유롭게 이용하세요</div>
+</div>
+<script>
+function showStudioOverlay(msg) {
+  const el = document.getElementById('studio-overlay');
+  const txt = document.getElementById('studio-overlay-text');
+  if (txt) txt.textContent = msg || '⏳ AI가 상세페이지와 숏폼 영상을 굽고 있습니다...';
+  if (el) { el.style.display = 'flex'; el.classList.add('active'); }
+}
+function hideStudioOverlay() {
+  const el = document.getElementById('studio-overlay');
+  if (el) { el.classList.remove('active'); el.style.display = 'none'; }
+}
+</script>
+<!-- LOADING -->
+<div class="loading-overlay" id="loading">
+<div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+<div class="spinner"></div>
+<span id="loading-message" style="font-size:14px;color:var(--text-muted)"></span>
+</div>
+</div>
+<!-- USER MODAL -->
+<div class="modal-overlay" id="user-modal">
+<div class="modal">
+<div class="modal-title">👋 누구세요?</div>
+<div class="modal-btns">
+<div class="modal-btn" onclick="setUser('남편')">
+<div class="modal-btn-name">👨 남편</div>
+<div class="modal-btn-sub">남편 계정으로 접속</div>
+</div>
+<div class="modal-btn" onclick="setUser('아내')">
+<div class="modal-btn-name">👩 아내</div>
+<div class="modal-btn-sub">아내 계정으로 접속</div>
+</div>
+</div>
+</div>
+</div>
+<!-- 로그인 화면 (비밀번호만) -->
+<div class="login-screen" id="login-screen">
+<div class="login-card">
+<div class="login-logo">
+<div class="login-logo-dot"></div>
+<span style="font-weight:900;font-size:20px">셀러 마진 계산기</span>
+</div>
+<div class="login-sub" style="margin-bottom:24px">부부 전용 위탁판매 관리 시스템</div>
+<div>
+<div data-auto_prompt="false" data-callback="handleCredentialResponse" data-client_id="985307778387-1v16a641sg34lsmsdbliamfcettauto6.apps.googleusercontent.com" data-context="signin" data-ux_mode="popup" id="g_id_onload">
+</div>
+<div class="g_id_signin" data-logo_alignment="left" data-shape="rectangular" data-size="large" data-text="signin_with" data-theme="outline" data-type="standard" style="display:flex; justify-content:center; border-radius: 8px; margin-top:10px;">
+</div>
+<div id="login-redirect-uri-hint" style="margin-top:10px;font-size:11px;color:var(--text-muted);word-break:break-all;display:none"></div>
+</div>
+</div>
+</div><!-- end login-screen -->
+<!-- === ACCESS DENIED SCREEN === -->
+<div id="access-denied" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:9000; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center;">
+<div style="background:var(--surface); border:1px solid var(--danger); padding:30px 20px; border-radius:12px; max-width:400px; width:100%;">
+<div style="font-size:40px; margin-bottom:10px;">🚫</div>
+<h2 style="color:var(--danger); margin-bottom:15px; font-weight:900;">접근 권한 없음</h2>
+<div style="color:var(--text); font-size:14px; margin-bottom:10px;">
+      현재 계정(<strong id="denied-email" style="color:var(--accent2);"></strong>)은<br/>관리자가 허가한 접근 이메일 목록에 없습니다.
+    </div>
+<div style="color:var(--text-muted); font-size:12px; margin-bottom:24px; line-height:1.5;">
+      이용을 원하시면 대시보드 관리자의<br/><strong>'설정 탭 &gt; 인증'</strong> 화면에서 이메일을 등록받거나<br/><strong>초대 링크</strong>를 통해 가입해야 합니다.
+    </div>
+<div style="display:flex; gap:10px; justify-content:center;">
+<button onclick="location.reload()" style="padding:12px 20px; background:var(--surface2); color:white; border:1px solid var(--border); border-radius:8px; font-weight:700; cursor:pointer; width:100%;">다시 시도</button>
+<button onclick="signOut()" style="padding:12px 20px; background:var(--danger); color:white; border:none; border-radius:8px; font-weight:700; cursor:pointer; width:100%;">다른 계정 로그인</button>
+</div>
+</div>
+</div>
+<!-- === RESCUE UI (자동 복구) === -->
+<div id="rescue-ui" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:10000; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center;">
+<div style="background:#1a1d24; border:1px solid #38bdf8; padding:30px 20px; border-radius:12px; max-width:400px; width:100%;">
+<div style="font-size:32px; margin-bottom:10px;">⚡</div>
+<h2 style="color:#38bdf8; margin-bottom:15px; font-weight:900;">시스템 자가 복구</h2>
+<p style="color:white; font-size:13px; margin-bottom:20px; line-height:1.6;">페이지 초기화가 지연되거나 중단되었습니다.<br/>데이터 초기화 후 다시 시작하시겠습니까?</p>
+<button onclick="safeClearCache()" style="padding:14px; background:#38bdf8; color:black; border:none; border-radius:8px; font-weight:700; cursor:pointer; width:100%;">캐시 초기화 후 재시작 (설정 보존)</button>
+<button onclick="document.getElementById('rescue-ui').style.display='none'; if(typeof showPinModal==='function') showPinModal();" style="margin-top:12px; background:transparent; border:none; color:var(--text-muted); font-size:12px; cursor:pointer;">무시하고 기다리기</button>
+</div>
+</div>
+<!-- 앱 전체 래퍼 -->
+<div id="app-wrapper" style="display:none">
+<header>
+<div class="logo">
+<div class="logo-dot"></div>
+    셀러 마진 계산기
+  </div>
+<div id="fx-ticker" style="display:flex;gap:12px;align-items:center;font-size:11px;color:var(--text-muted);margin-left:auto;margin-right:16px;font-family:'SF Mono','Fira Code',monospace;">
+  <span title="미국 달러">🇺🇸 $<span id="fx-usd" style="font-weight:700;color:var(--text);">--</span></span>
+  <span title="중국 위안">🇨🇳 ¥<span id="fx-cny" style="font-weight:700;color:#f59e0b;">--</span></span>
+  <span title="일본 엔">🇯🇵 ¥<span id="fx-jpy" style="font-weight:700;color:var(--text);">--</span></span>
+  <span title="유럽 유로">🇪🇺 €<span id="fx-eur" style="font-weight:700;color:var(--text);">--</span></span>
+</div>
+<div class="header-right">
+<div class="sync-status">
+<div class="sync-dot" id="sync-dot"></div>
+<span id="sync-label">연결 중...</span>
+</div>
+<div class="user-badge" id="user-badge" onclick="signOut()" title="로그아웃">설정 중...</div>
+</div>
+</header>
+    <div class="tabs">
+      <div class="tab active" data-tab="sourcing" onclick="showTab('sourcing')">🔍 T1: 소싱 인텔리전스</div>
+      <div class="tab" data-tab="inventory" onclick="showTab('inventory')">📦 T2: 재고/사입 관제</div>
+      <div class="tab" data-tab="studio" onclick="showTab('studio')">🎬 T3: 마케팅 스튜디오</div>
+      <div class="tab" data-tab="oms" onclick="showTab('oms')">🌐 T4: OMS 초광역 관제</div>
+      <div class="tab" data-tab="ledger" onclick="showTab('ledger')">📒 T5: 통합 자산 장부 <span class="count-badge" id="list-count" style="display:none">0</span></div>
+      <div class="tab" data-tab="finance" onclick="showTab('finance')">💰 T6: 재무 인사이트</div>
+      <div class="tab" data-tab="setup" id="tab-setup" onclick="showTab('setup')" style="margin-left: auto;">⚙️ T7: 시스템 설정</div>
+    </div>
+
+    <nav class="tab-bar" aria-label="하단 메뉴">
+      <div class="tab-bar-item active" onclick="showTab('sourcing')" data-tab="sourcing"><span class="tb-icon">🔍</span><span class="tb-label">T1 소싱</span></div>
+      <div class="tab-bar-item" onclick="showTab('inventory')" data-tab="inventory"><span class="tb-icon">📦</span><span class="tb-label">T2 재고</span></div>
+      <div class="tab-bar-item" onclick="showTab('studio')" data-tab="studio"><span class="tb-icon">🎬</span><span class="tb-label">T3 스튜디오</span></div>
+      <div class="tab-bar-item" onclick="showTab('oms')" data-tab="oms"><span class="tb-icon">🌐</span><span class="tb-label">T4 OMS</span></div>
+      <div class="tab-bar-item" onclick="showTab('ledger')" data-tab="ledger"><span class="tb-icon">📒</span><span class="tb-label">T5 장부</span><span class="count-badge" id="list-count-mobile" style="display:none">0</span></div>
+      <div class="tab-bar-item" onclick="showTab('finance')" data-tab="finance"><span class="tb-icon">💰</span><span class="tb-label">T6 재무</span></div>
+      <div class="tab-bar-item" onclick="showTab('setup')" data-tab="setup"><span class="tb-icon">⚙️</span><span class="tb-label">T7 설정</span></div>
+    </nav>
+    <div class="content-area">
+      <main class="main-content">
+        <div class="page active" id="page-sourcing">
+<!-- ═══════════════════════════════════════════════════
+     T1: 소싱 인텔리전스 — HTML 템플릿
+     T1 소싱 인텔리전스 HTML 템플릿
+     ═══════════════════════════════════════════════════ -->
+
+<div style="max-width:1400px;margin:0 auto;padding:16px 0;">
+
+    <!-- ═══ T1-A: 가격 워치독 경고 배너 ═══ -->
+    <div id="t1-alert-banner" class="t1-alert-banner" style="display:none;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);margin-bottom:12px;font-size:12px;cursor:pointer;"></div>
+
+    <!-- ═══ T1-C: 트렌드 하락 경보 ═══ -->
+    <div id="t1-trend-alerts" style="display:none;margin-bottom:12px;"></div>
+
+    <!-- 모드 전환 -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <span style="font-size:15px;font-weight:700;">🔍 소싱 인텔리전스</span>
+        <div style="margin-left:auto;display:flex;gap:4px;">
+            <button class="t1-mode-btn active" data-mode="single" onclick="t1SetMode('single')">단건 검색</button>
+            <button class="t1-mode-btn" data-mode="bulk" onclick="t1SetMode('bulk')">대량 소싱</button>
+            <button class="t1-mode-btn" data-mode="trend" onclick="t1SetMode('trend')" style="background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.3);">📈 트렌드 소싱</button>
+        </div>
+    </div>
+
+    <!-- ═══ 단건 검색 모드 ═══ -->
+    <div id="t1-single-panel">
+        <!-- 검색 바 -->
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input type="text" id="t1-search-input" placeholder="키워드 또는 상품명 입력..." style="flex:1;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(22,25,32,0.85);color:#e2e8f0;font-size:13px;">
+            <button onclick="t1SingleSearch()" style="padding:10px 20px;border-radius:8px;border:none;background:#10b981;color:#0d0f14;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">분석 시작</button>
+        </div>
+
+        <!-- 연관 키워드 칩 -->
+        <div id="t1-related-chips" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+
+        <!-- 검색 결과 영역 -->
+        <div id="t1-single-results" style="display:none;"></div>
+    </div>
+
+    <!-- ═══ 대량 소싱 모드 ═══ -->
+    <div id="t1-bulk-panel" style="display:none;">
+
+        <!-- STEP 1: 데이터 가져오기 -->
+        <div class="t1-section-header"><span>STEP 1: 상품 데이터 가져오기</span><span class="t1-badge-new">NEW</span></div>
+        <div class="t1-src-grid">
+            <div class="t1-src-card active" onclick="t1SetBulkSource('excel',this)">
+                <div class="t1-src-icon">📄</div>
+                <div class="t1-src-name">엑셀 업로드</div>
+                <div class="t1-src-desc">도매꾹/도매매 CSV/XLSX</div>
+            </div>
+            <div class="t1-src-card" onclick="t1SetBulkSource('url',this)">
+                <div class="t1-src-icon">🔗</div>
+                <div class="t1-src-name">URL 붙여넣기</div>
+                <div class="t1-src-desc">상품 페이지 자동 추출</div>
+            </div>
+            <div class="t1-src-card" onclick="t1SetBulkSource('api',this)">
+                <div class="t1-src-icon">🔍</div>
+                <div class="t1-src-name">API 검색</div>
+                <div class="t1-src-desc">도매꾹 API 직접</div>
+            </div>
+            <div class="t1-src-card" onclick="t1SetBulkSource('sheet',this)">
+                <div class="t1-src-icon">📊</div>
+                <div class="t1-src-name">구글 시트</div>
+                <div class="t1-src-desc">내 상품 목록 가져오기</div>
+            </div>
+        </div>
+
+        <!-- 엑셀 드롭존 -->
+        <div id="t1-drop-zone" class="t1-drop-zone">
+            <div class="t1-drop-icon">📂</div>
+            <div class="t1-drop-main">엑셀/CSV 파일을 여기에 드래그 앤 드롭</div>
+            <div class="t1-drop-sub">지원: .xlsx .xls .csv — 도매꾹, 도매매, 온채널 형식 자동 감지</div>
+        </div>
+
+        <!-- URL 입력 -->
+        <div id="t1-bulk-url" style="display:none;">
+            <div style="display:flex;gap:6px;margin-bottom:10px;">
+                <input type="text" id="t1-url-input" placeholder="https://domeggook.com/main/item/itemView.php?aid=..." style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(22,25,32,0.85);color:#e2e8f0;font-size:12px;">
+                <button onclick="t1ExtractFromUrl()" style="padding:8px 16px;border-radius:8px;border:none;background:#f59e0b;color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer;">추출</button>
+            </div>
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:10px;">💡 도매꾹, 도매매, 온채널 등 등록된 도매사이트 URL을 붙여넣으면 상품 정보를 자동 추출합니다. 여러 개를 연속으로 추가할 수 있습니다.</div>
+        </div>
+
+        <!-- API 검색 -->
+        <div id="t1-bulk-api" style="display:none;">
+            <div style="display:flex;gap:6px;margin-bottom:10px;">
+                <input type="text" id="t1-api-search-input" placeholder="도매꾹에서 검색할 키워드..." style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(22,25,32,0.85);color:#e2e8f0;font-size:12px;">
+                <button onclick="t1ApiSearch()" style="padding:8px 16px;border-radius:8px;border:none;background:#10b981;color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer;">검색</button>
+            </div>
+        </div>
+
+        <!-- 구글시트 가져오기 -->
+        <div id="t1-bulk-sheet" style="display:none;">
+            <button onclick="t1ImportFromGoogleSheet()" style="width:100%;padding:12px;border-radius:8px;border:1px solid #10b981;background:rgba(16,185,129,0.06);color:#10b981;font-size:13px;font-weight:600;cursor:pointer;">📊 구글 시트에서 상품 목록 불러오기</button>
+            <div style="font-size:10px;color:#94a3b8;margin-top:6px;">구글 시트의 '상품목록' 탭에서 상품명과 원가를 불러옵니다.</div>
+        </div>
+
+        <!-- 분석 결과 영역 -->
+        <div id="t1-bulk-results" style="display:none;margin-top:14px;"></div>
+
+    </div>
+
+    <!-- ═══ 트렌드 소싱 모드 ═══ -->
+    <div id="t1-trend-panel" style="display:none;">
+        <div class="t1-section-header">
+            <span>📈 네이버 데이터랩 트렌드 소싱</span>
+            <span class="t1-badge-new">TREND</span>
+        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;line-height:1.5;">
+            카테고리별 검색량 급상승 키워드를 자동 추출하여<br>
+            도매 가격 비교 → 마진 분석 → T3 상세페이지 대기열까지 원클릭 소싱합니다.
+        </div>
+        <!-- 카테고리 선택 그리드 -->
+        <div id="t1-trend-cat-grid" class="t1-trend-cat-grid"></div>
+        <!-- 급상승 키워드 + 분석 결과 -->
+        <div id="t1-trend-results" style="display:none;"></div>
+    </div>
+</div>
+
+<script>
+// 대량 소싱 소스 전환
+function t1SetBulkSource(source, btn) {
+    document.querySelectorAll('.t1-src-card').forEach(c => c.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    ['excel','url','api','sheet'].forEach(s => {
+        const el = document.getElementById('t1-bulk-' + s);
+        if (el) el.style.display = (s === source) ? 'block' : 'none';
+    });
+    // 드롭존은 id가 다르므로 별도 처리
+    const dropZone = document.getElementById('t1-drop-zone');
+    if (dropZone) dropZone.style.display = (source === 'excel') ? 'block' : 'none';
+}
+window.t1SetBulkSource = t1SetBulkSource;
+</script>
+</div> <!-- /#page-sourcing -->
+
+<div class="page" id="page-inventory">
+<!-- ═══════════════════════════════════════════════════
+     T2: 재고/사입 관제 — HTML 템플릿
+     T2 재고/사입 관제 HTML 템플릿
+     ═══════════════════════════════════════════════════ -->
+
+<div style="max-width:1400px;margin:0 auto;padding:16px 0;">
+
+    <!-- 대시보드 -->
+    <div id="t2-dashboard"></div>
+
+    <!-- 대기열 (T1에서 넘어온 상품) -->
+    <div id="t2-pending-list" style="display:none;" class="t2-panel"></div>
+
+    <!-- 2단 레이아웃: 좌=시뮬레이터, 우=상품관리 -->
+    <div class="t2-layout">
+
+        <!-- ═══ 좌측: 마진 시뮬레이터 ═══ -->
+        <div>
+            <!-- 시뮬레이터 모드 전환 -->
+            <div style="display:flex;gap:4px;margin-bottom:10px;">
+                <button class="t2-sim-tab active" data-mode="consign" onclick="t2SetSimMode('consign')">🖥️ 온라인 위탁</button>
+                <button class="t2-sim-tab" data-mode="global" onclick="t2SetSimMode('global')">✈️ 해외 사입</button>
+                <button class="t2-sim-tab" data-mode="field" onclick="t2SetSimMode('field')">🏪 현장 사입</button>
+            </div>
+
+            <!-- 온라인 위탁 시뮬레이터 -->
+            <div id="t2-sim-consign" class="t2-panel">
+                <div class="t2-panel-header">🖥️ 온라인 위탁 마진 시뮬레이터</div>
+
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div>
+                        <label style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;display:block;">상품명</label>
+                        <input type="text" id="t2-product-name" placeholder="상품명 입력" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+
+                    <div>
+                        <label style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;display:block;">도매 원가 (원)</label>
+                        <input type="number" id="t2-cost" placeholder="0" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">도매 배송비</label>
+                            <input type="number" id="t2-supply-ship" value="3000" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">마켓 배송비</label>
+                            <input type="number" id="t2-market-ship" value="3000" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 80px;gap:8px;">
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">판매 마켓</label>
+                            <select id="t2-market-select" onchange="document.getElementById('t2-fee').value=this.selectedOptions[0]?.dataset?.fee||5.5;t2RecalcMargin();" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;">
+                                <option value="smartstore" data-fee="5.5">스마트스토어 (5.5%)</option>
+                                <option value="coupang" data-fee="10.8">쿠팡 (10.8%)</option>
+                                <option value="gmarket" data-fee="12">G마켓 (12%)</option>
+                                <option value="auction" data-fee="12">옥션 (12%)</option>
+                                <option value="11st" data-fee="11">11번가 (11%)</option>
+                                <option value="wemakeprice" data-fee="9">위메프 (9%)</option>
+                                <option value="tmon" data-fee="9">티몬 (9%)</option>
+                                <option value="kakao" data-fee="8">카카오쇼핑 (8%)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">수수료%</label>
+                            <input type="number" id="t2-fee" value="5.5" step="0.1" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">희망 마진율</label>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <input type="range" id="t2-target-margin-slider" min="1" max="80" value="15" style="flex:1;" oninput="document.getElementById('t2-target-margin').value=this.value;t2RecalcMargin();">
+                            <input type="number" id="t2-target-margin" value="15" style="width:50px;padding:4px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;text-align:center;" oninput="document.getElementById('t2-target-margin-slider').value=this.value;t2RecalcMargin();">
+                            <span style="font-size:11px;color:var(--text-muted);">%</span>
+                        </div>
+                        <div style="display:flex;gap:4px;margin-top:4px;">
+                            <button class="t2-mini-btn" onclick="document.getElementById('t2-target-margin').value=10;document.getElementById('t2-target-margin-slider').value=10;t2RecalcMargin();">10%</button>
+                            <button class="t2-mini-btn" onclick="document.getElementById('t2-target-margin').value=20;document.getElementById('t2-target-margin-slider').value=20;t2RecalcMargin();">20%</button>
+                            <button class="t2-mini-btn" onclick="document.getElementById('t2-target-margin').value=30;document.getElementById('t2-target-margin-slider').value=30;t2RecalcMargin();">30%</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">수량</label>
+                        <input type="number" id="t2-quantity" value="1" min="1" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+
+                    <!-- 마진 계산 결과 -->
+                    <div id="t2-margin-result" style="display:none;"></div>
+
+                    <!-- 8마켓 비교 -->
+                    <div id="t2-market-compare" style="display:none;"></div>
+
+                    <!-- 위탁↔사입 전환 시뮬레이션 -->
+                    <div class="t2-panel" style="background:rgba(167,139,250,0.04);border-color:rgba(167,139,250,0.15);">
+                        <div class="t2-panel-header">🔄 위탁 ↔ 사입 전환 시뮬레이션</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                            <div>
+                                <label style="font-size:10px;color:var(--text-muted);">사입 MOQ</label>
+                                <input type="number" id="t2-cvd-moq" value="10" min="1" style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;">
+                            </div>
+                            <div>
+                                <label style="font-size:10px;color:var(--text-muted);">사입 할인율 %</label>
+                                <input type="number" id="t2-cvd-discount" value="15" style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;">
+                            </div>
+                        </div>
+                        <button onclick="t2CompareConsignVsDirect()" style="width:100%;padding:8px;border-radius:6px;border:1px solid #a78bfa;background:rgba(167,139,250,0.08);color:#a78bfa;font-size:11px;font-weight:600;cursor:pointer;">🔄 비교 분석</button>
+                        <div id="t2-cvd-result" style="display:none;margin-top:10px;"></div>
+                    </div>
+
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">메모</label>
+                        <textarea id="t2-memo" placeholder="거래처 정보, 특이사항..." style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;min-height:60px;resize:vertical;"></textarea>
+                    </div>
+
+                    <button onclick="t2SaveFromSimulator()" style="width:100%;padding:12px;border-radius:8px;border:none;background:var(--accent,#10b981);color:#0d0f14;font-size:13px;font-weight:700;cursor:pointer;">🚀 상품 확정 및 저장</button>
+                </div>
+            </div>
+
+            <!-- 해외 사입 계산기 -->
+            <div id="t2-sim-global" class="t2-panel" style="display:none;">
+                <div class="t2-panel-header">✈️ 해외 사입 Landed Cost 계산기</div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">중국 원문 가격 (¥)</label>
+                        <input type="number" id="t2-cny-price" placeholder="0" oninput="t2CalcLandedCost()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">환율 (1¥)</label>
+                            <input type="number" id="t2-exchange-rate" value="195" oninput="t2CalcLandedCost()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">관세율 (%)</label>
+                            <input type="number" id="t2-tariff" value="8" oninput="t2CalcLandedCost()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">물류/배대지 (원)</label>
+                        <input type="number" id="t2-global-shipping" value="0" oninput="t2CalcLandedCost()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;">
+                        <button class="t2-mini-btn" onclick="document.getElementById('t2-tariff').value=13;t2CalcLandedCost();">👕 의류 13%</button>
+                        <button class="t2-mini-btn" onclick="document.getElementById('t2-tariff').value=0;t2CalcLandedCost();">💻 전자 0%</button>
+                        <button class="t2-mini-btn" onclick="document.getElementById('t2-tariff').value=6.5;t2CalcLandedCost();">💄 화장품 6.5%</button>
+                        <button class="t2-mini-btn" onclick="document.getElementById('t2-tariff').value=8;t2CalcLandedCost();">🧸 장난감 8%</button>
+                    </div>
+                    <div id="t2-landed-result" style="display:none;"></div>
+                </div>
+            </div>
+
+            <!-- 현장 사입 -->
+            <div id="t2-sim-field" class="t2-panel" style="display:none;">
+                <div class="t2-panel-header">🏪 현장 사입 기록</div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">현장 매입 단가</label>
+                        <input type="number" id="t2-field-price" placeholder="0" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">매입 수량</label>
+                        <input type="number" id="t2-field-qty" value="1" min="1" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+                    <button onclick="document.getElementById('t2-cost').value=document.getElementById('t2-field-price').value;t2SetSimMode('consign');t2RecalcMargin();" style="width:100%;padding:8px;border-radius:6px;border:none;background:var(--accent);color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer;">💰 마진 계산으로 이동</button>
+                </div>
+            </div>
+
+            <!-- FIFO 재고 단가 -->
+            <div class="t2-panel">
+                <div class="t2-panel-header">📊 FIFO 재고 단가 분석 <button class="t2-mini-btn" onclick="t2RenderFIFO()" style="margin-left:auto;">🔄 재계산</button></div>
+                <div id="t2-fifo-panel"></div>
+            </div>
+
+            <!-- ═══ T2-D: 리밸런싱 추천 ═══ -->
+            <div class="t2-panel" id="t2-rebalance-panel" style="display:none;"></div>
+
+            <!-- 공급업체 관리 -->
+            <div class="t2-panel">
+                <div class="t2-panel-header">🏢 공급업체 <button class="t2-mini-btn" onclick="t2ShowVendorModal()" style="margin-left:auto;">+ 추가</button></div>
+                <div id="t2-vendor-list"></div>
+            </div>
+
+            <!-- 공급업체 등록 모달 -->
+            <div id="t2-vendor-modal" class="t2-panel" style="display:none;">
+                <div class="t2-panel-header">🏢 공급업체 등록/수정</div>
+                <input type="hidden" id="t2-vendor-id">
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <input type="text" id="t2-vendor-name" placeholder="상호명 (필수)" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    <input type="text" id="t2-vendor-rep" placeholder="대표자 이름" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    <input type="text" id="t2-vendor-phone" placeholder="연락처" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    <input type="text" id="t2-vendor-address" placeholder="주소" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    <select id="t2-vendor-grade" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;">
+                        <option value="A">A등급 (주요 거래처)</option>
+                        <option value="B" selected>B등급 (일반 거래처)</option>
+                        <option value="C">C등급 (신규/테스트)</option>
+                    </select>
+                    <textarea id="t2-vendor-memo" placeholder="메모 (영업시간, 결제 방식 등)" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;min-height:50px;resize:vertical;"></textarea>
+                    <div style="display:flex;gap:8px;">
+                        <button onclick="t2SaveVendor()" style="flex:1;padding:8px;border-radius:6px;border:none;background:var(--accent);color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer;">💾 저장</button>
+                        <button onclick="t2CloseVendorModal()" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;">취소</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ 우측: 상품 관리 ═══ -->
+        <div>
+            <!-- 툴바: 필터 + 뷰 전환 + 정렬 -->
+            <div class="t2-toolbar">
+                <button class="t2-filter-btn active" data-status="all" onclick="t2SetFilter('all')">전체</button>
+                <button class="t2-filter-btn" data-status="sourcing" onclick="t2SetFilter('sourcing')">🔍 소싱중</button>
+                <button class="t2-filter-btn" data-status="stocked" onclick="t2SetFilter('stocked')">📦 입고</button>
+                <button class="t2-filter-btn" data-status="selling" onclick="t2SetFilter('selling')">🟢 판매중</button>
+                <button class="t2-filter-btn" data-status="soldout" onclick="t2SetFilter('soldout')">⬛ 품절</button>
+                <div style="margin-left:auto;display:flex;gap:4px;">
+                    <button class="t2-view-btn active" data-view="card" onclick="t2SetViewMode('card')">카드</button>
+                    <button class="t2-view-btn" data-view="list" onclick="t2SetViewMode('list')">리스트</button>
+                    <select onchange="t2SetSort(this.value)" style="padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:10px;">
+                        <option value="newest">최신순</option>
+                        <option value="margin">마진순</option>
+                        <option value="price">가격순</option>
+                        <option value="stock">재고순</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 상품 리스트 -->
+            <div id="t2-product-list"></div>
+        </div>
+
+    </div>
+</div>
+</div>
+
+        <div class="page" id="page-studio">
+<!-- ═══════════════════════════════════════════════════
+     T3: 마케팅 스튜디오 — HTML 템플릿
+     T3 상세페이지 스튜디오 HTML 템플릿
+     ═══════════════════════════════════════════════════ -->
+
+<div style="max-width:1400px;margin:0 auto;padding:16px 0;">
+
+    <!-- 대기열 패널 (T1 대량소싱 연동) -->
+    <div id="t5-queue-panel" class="t5-panel" style="display:none;"></div>
+    <!-- 마켓 대량 자동 등록 패널 (t5-market-register.js) -->
+    <div id="t5-register-panel" class="t5-panel" style="display:none;"></div>
+
+    <!-- 2단 레이아웃: 좌=입력, 우=미리보기 -->
+    <div class="t5-layout">
+
+        <!-- ═══ 좌측: 입력 패널 ═══ -->
+        <div>
+            <div class="t5-panel">
+                <div class="t5-panel-header">
+                    <span>🎨 AI 상세페이지 생성기</span>
+                    <span class="t5-badge-new">v7</span>
+                </div>
+
+                <!-- 상품명 -->
+                <div class="t5-form-group">
+                    <label>📦 상품명</label>
+                    <input type="text" id="t5-product-name" placeholder="예: 프리미엄 스테인리스 텀블러 500ml" oninput="t5UpdatePreview()">
+                </div>
+
+                <!-- 상품 설명 -->
+                <div class="t5-form-group">
+                    <label>📝 상품 설명 (AI가 보강)</label>
+                    <textarea id="t5-product-desc" rows="3" placeholder="간단한 설명을 입력하면 AI가 매력적인 카피로 변환합니다" oninput="t5UpdatePreview()"></textarea>
+                </div>
+
+                <!-- 이미지 URL (다중) -->
+                <div class="t5-form-group">
+                    <label>🖼️ 이미지 URL (줄바꿈으로 여러 장)</label>
+                    <textarea id="t5-image-urls" rows="2" placeholder="https://image1.jpg&#10;https://image2.jpg&#10;(첫 번째가 대표 이미지)" oninput="t5UpdatePreview()"></textarea>
+                </div>
+
+                <!-- 특장점 -->
+                <div class="t5-form-group">
+                    <label>⭐ 특장점 (줄바꿈 구분)</label>
+                    <textarea id="t5-features" rows="4" placeholder="보온 12시간 유지&#10;BPA Free 친환경 소재&#10;세련된 매트 블랙 디자인&#10;원터치 오픈 뚜껑" oninput="t5UpdatePreview()"></textarea>
+                </div>
+
+                <!-- 가격 + 뱃지 -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div class="t5-form-group">
+                        <label>💰 판매가</label>
+                        <input type="number" id="t5-price" placeholder="29900" oninput="t5UpdatePreview()">
+                    </div>
+                    <div class="t5-form-group">
+                        <label>🏷️ 뱃지 문구</label>
+                        <input type="text" id="t5-badge" placeholder="BEST SELLER" oninput="t5UpdatePreview()">
+                    </div>
+                </div>
+
+                <!-- SEO 키워드 표시 -->
+                <div class="t5-seo-bar">
+                    <strong>🔑 SEO:</strong> <span id="t5-seo-keywords" style="color:#94a3b8;">AI 생성 시 자동 추출</span>
+                </div>
+
+                <!-- 템플릿 선택 (8종) -->
+                <div class="t5-form-group">
+                    <label>🎯 템플릿 스타일</label>
+                    <div class="t5-tpl-grid">
+                        <button class="t5-tpl-btn active" data-tpl="clean" onclick="t5SetTemplate('clean')">
+                            <span class="t5-tpl-icon">✨</span><span class="t5-tpl-name">깔끔</span><span class="t5-tpl-desc">화이트</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="premium" onclick="t5SetTemplate('premium')">
+                            <span class="t5-tpl-icon">💎</span><span class="t5-tpl-name">프리미엄</span><span class="t5-tpl-desc">다크</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="trendy" onclick="t5SetTemplate('trendy')">
+                            <span class="t5-tpl-icon">🔥</span><span class="t5-tpl-name">트렌디</span><span class="t5-tpl-desc">오렌지</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="minimal" onclick="t5SetTemplate('minimal')">
+                            <span class="t5-tpl-icon">🤍</span><span class="t5-tpl-name">미니멀</span><span class="t5-tpl-desc">여백</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="tech" onclick="t5SetTemplate('tech')">
+                            <span class="t5-tpl-icon">💻</span><span class="t5-tpl-name">테크</span><span class="t5-tpl-desc">블루다크</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="nature" onclick="t5SetTemplate('nature')">
+                            <span class="t5-tpl-icon">🌿</span><span class="t5-tpl-name">내추럴</span><span class="t5-tpl-desc">그린</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="kids" onclick="t5SetTemplate('kids')">
+                            <span class="t5-tpl-icon">🧸</span><span class="t5-tpl-name">키즈</span><span class="t5-tpl-desc">파스텔</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="food" onclick="t5SetTemplate('food')">
+                            <span class="t5-tpl-icon">🍽️</span><span class="t5-tpl-name">푸드</span><span class="t5-tpl-desc">따뜻한톤</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 마켓 규격 -->
+                <div class="t5-form-group">
+                    <label>📐 마켓 규격</label>
+                    <div class="t5-mkt-row">
+                        <button class="t5-mkt-btn active" data-market="smartstore" onclick="t5SetMarket('smartstore')">🟢 스마트스토어<br><span style="font-size:8px;color:var(--text-muted)">860px</span></button>
+                        <button class="t5-mkt-btn" data-market="coupang" onclick="t5SetMarket('coupang')">🟠 쿠팡<br><span style="font-size:8px;color:var(--text-muted)">780px</span></button>
+                        <button class="t5-mkt-btn" data-market="gmarket" onclick="t5SetMarket('gmarket')">🔵 G마켓<br><span style="font-size:8px;color:var(--text-muted)">860px</span></button>
+                        <button class="t5-mkt-btn" data-market="11st" onclick="t5SetMarket('11st')">🔴 11번가<br><span style="font-size:8px;color:var(--text-muted)">800px</span></button>
+                        <button class="t5-mkt-btn" data-market="tmon" onclick="t5SetMarket('tmon')">🟣 티몬<br><span style="font-size:8px;color:var(--text-muted)">900px</span></button>
+                    </div>
+                </div>
+
+                <!-- AI 카피 생성 -->
+                <button class="t5-btn-primary" onclick="t5GenerateAICopy()">🤖 AI 카피라이팅 + SEO 키워드 생성</button>
+
+                <!-- 복사/다운로드 -->
+                <div class="t5-btn-row">
+                    <button class="t5-btn-secondary" onclick="t5CopyHTML()">📋 HTML 복사</button>
+                    <button class="t5-btn-secondary" onclick="t5DownloadHTML()">💾 HTML 다운로드</button>
+                </div>
+            </div>
+
+            <!-- ═══ SEO 최적화 상품명 ═══ -->
+            <div class="t5-panel">
+                <div class="t5-panel-header">
+                    <span>🎯 SEO 최적화 상품명 생성기</span>
+                    <span class="t5-badge-new">NEW</span>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted,#94a3b8);margin-bottom:10px;line-height:1.5;">
+                    네이버 검색광고 키워드 데이터를 분석하여<br>검색 노출에 최적화된 상품명 5개를 자동 생성합니다.
+                </div>
+                <button class="t5-btn-primary" onclick="t5GenerateSEOTitle()" style="background:rgba(59,130,246,0.9);">🔍 SEO 상품명 생성 (키워드 분석)</button>
+                <div id="t5-seo-title-result" style="display:none;margin-top:10px;"></div>
+            </div>
+
+            <!-- ═══ AI 배너 이미지 생성기 ═══ -->
+            <div class="t5-panel">
+                <div class="t5-panel-header">
+                    <span>🖼️ AI 배너 이미지 생성기</span>
+                    <span class="t5-badge-new">NEW</span>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted,#94a3b8);margin-bottom:10px;line-height:1.5;">
+                    입력한 상품 정보와 이미지로 마켓/SNS용 배너를 자동 생성합니다.<br>
+                    템플릿 색상이 배너에도 적용됩니다.
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;">
+                    <button class="t5-btn-secondary" onclick="t5GenerateBanner('hero')" style="font-size:10px;padding:10px 4px;">
+                        <span style="font-size:16px;display:block;margin-bottom:2px;">🏠</span>
+                        대표 배너<br><span style="font-size:8px;color:var(--text-muted,#94a3b8)">860×500</span>
+                    </button>
+                    <button class="t5-btn-secondary" onclick="t5GenerateBanner('feature')" style="font-size:10px;padding:10px 4px;">
+                        <span style="font-size:16px;display:block;margin-bottom:2px;">⭐</span>
+                        특장점<br><span style="font-size:8px;color:var(--text-muted,#94a3b8)">860×400</span>
+                    </button>
+                    <button class="t5-btn-secondary" onclick="t5GenerateBanner('cta')" style="font-size:10px;padding:10px 4px;">
+                        <span style="font-size:16px;display:block;margin-bottom:2px;">🛒</span>
+                        CTA<br><span style="font-size:8px;color:var(--text-muted,#94a3b8)">860×300</span>
+                    </button>
+                    <button class="t5-btn-secondary" onclick="t5GenerateBanner('sns')" style="font-size:10px;padding:10px 4px;">
+                        <span style="font-size:16px;display:block;margin-bottom:2px;">📱</span>
+                        SNS<br><span style="font-size:8px;color:var(--text-muted,#94a3b8)">1080×1080</span>
+                    </button>
+                </div>
+                <button class="t5-btn-primary" onclick="t5GenerateAllBanners()" style="background:rgba(168,85,247,0.9);margin-bottom:8px;">🎨 4종 배너 일괄 생성</button>
+                <div id="t5-banner-preview" style="margin-top:8px;"></div>
+            </div>
+        </div>
+
+        <!-- ═══ 우측: 미리보기 ═══ -->
+        <div>
+            <div class="t5-preview-wrap">
+                <div class="t5-preview-header">
+                    <span>👁️ 상세페이지 미리보기</span>
+                    <span class="t5-char-count" id="t5-char-count">0자</span>
+                </div>
+                <iframe id="t5-preview-frame" sandbox="allow-same-origin"></iframe>
+            </div>
+        </div>
+
+    </div>
+</div>
+</div> <!-- /#page-studio -->
+
+        <div class="page" id="page-oms">
+<div style="max-width:1400px;margin:0 auto;padding:16px 0;">
+    <div id="t6-dashboard"></div>
+    <div class="t6-panel">
+        <div class="t6-panel-header">
+            <span>📦 주문 등록</span>
+            <button class="t6-mini-btn" onclick="t6FetchOrders()" style="font-size:10px;padding:4px 10px;">🔄 마켓 주문 수집</button>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:6px;align-items:end;">
+            <div><label style="font-size:10px;color:#94a3b8">상품명</label><input type="text" id="t6-order-product" placeholder="상품명" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:11px;"></div>
+            <div><label style="font-size:10px;color:#94a3b8">판매가</label><input type="number" id="t6-order-price" placeholder="0" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:11px;"></div>
+            <div><label style="font-size:10px;color:#94a3b8">마켓</label><select id="t6-order-market" style="width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:10px;"><option value="smartstore">스마트스토어</option><option value="coupang">쿠팡</option><option value="gmarket">G마켓</option><option value="11st">11번가</option><option value="tmon">티몬</option></select></div>
+            <div><label style="font-size:10px;color:#94a3b8">구매자</label><input type="text" id="t6-order-buyer" placeholder="구매자명" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:11px;"></div>
+            <div><label style="font-size:10px;color:#94a3b8">수량</label><input type="number" id="t6-order-qty" value="1" min="1" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:11px;"></div>
+            <button onclick="t6AddOrder()" style="padding:6px 14px;border-radius:8px;border:none;background:#10b981;color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">등록</button>
+        </div>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap;">
+        <button class="t6-mini-btn t6-filter-status active" data-val="all" onclick="t6SetFilter('status','all')">전체</button>
+        <button class="t6-mini-btn t6-filter-status" data-val="new" onclick="t6SetFilter('status','new')">🆕 신규</button>
+        <button class="t6-mini-btn t6-filter-status" data-val="shipped" onclick="t6SetFilter('status','shipped')">🚚 배송</button>
+        <button class="t6-mini-btn t6-filter-status" data-val="completed" onclick="t6SetFilter('status','completed')">✔️ 완료</button>
+        <div style="margin-left:auto;display:flex;gap:4px;">
+            <button class="t6-mini-btn t6-filter-date active" data-val="today" onclick="t6SetFilter('date','today')">오늘</button>
+            <button class="t6-mini-btn t6-filter-date" data-val="week" onclick="t6SetFilter('date','week')">이번주</button>
+            <button class="t6-mini-btn t6-filter-date" data-val="all" onclick="t6SetFilter('date','all')">전체</button>
+        </div>
+    </div>
+    <div id="t6-order-list"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+</div> <!-- /#page-oms -->
+
+<div class="page" id="page-ledger">
+<div style="max-width:1200px;margin:0 auto;padding:16px 0;">
+    <div id="t3-dashboard"></div>
+    <div class="t3-panel">
+        <div class="t3-panel-header">📝 거래 기록</div>
+        <div style="display:grid;grid-template-columns:100px 1fr 120px 2fr auto;gap:6px;align-items:end;">
+            <div><label style="font-size:10px;color:#94a3b8">유형</label><select id="t3-entry-type" onchange="t3UpdateCategories()" style="width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:10px;"><option value="income">💰 수입</option><option value="expense">💸 지출</option><option value="transfer">🔄 이체</option></select></div>
+            <div><label style="font-size:10px;color:#94a3b8">분류</label><select id="t3-entry-category" style="width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:10px;"><option>마켓 정산</option></select></div>
+            <div><label style="font-size:10px;color:#94a3b8">금액 (원)</label><input type="number" id="t3-entry-amount" placeholder="0" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:11px;"></div>
+            <div><label style="font-size:10px;color:#94a3b8">설명</label><input type="text" id="t3-entry-desc" placeholder="거래 내용" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:11px;"></div>
+            <button onclick="t3AddEntry()" style="padding:6px 14px;border-radius:8px;border:none;background:#10b981;color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer;">기록</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+            <input type="date" id="t3-entry-date" style="padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:10px;">
+            <select id="t3-entry-market" style="padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:10px;"><option value="">마켓 선택 (선택)</option><option value="smartstore">스마트스토어</option><option value="coupang">쿠팡</option><option value="gmarket">G마켓</option><option value="11st">11번가</option></select>
+        </div>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:10px;">
+        <button class="t3-mini-btn t3-filter-type active" data-val="all" onclick="t3SetFilter('type','all')">전체</button>
+        <button class="t3-mini-btn t3-filter-type" data-val="income" onclick="t3SetFilter('type','income')">💰 수입</button>
+        <button class="t3-mini-btn t3-filter-type" data-val="expense" onclick="t3SetFilter('type','expense')">💸 지출</button>
+        <button class="t3-mini-btn t3-filter-type" data-val="transfer" onclick="t3SetFilter('type','transfer')">🔄 이체</button>
+    </div>
+    <div id="t3-entry-list"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+</div> <!-- /#page-ledger -->
+
+        <div class="page" id="page-finance">
+<div style="max-width:1200px;margin:0 auto;padding:16px 0;">
+    <div id="t4-summary"></div>
+    <div style="display:flex;gap:4px;margin-bottom:12px;">
+        <button class="t4-period-btn" data-months="3" onclick="t4SetPeriod(3)">3개월</button>
+        <button class="t4-period-btn active" data-months="6" onclick="t4SetPeriod(6)">6개월</button>
+        <button class="t4-period-btn" data-months="12" onclick="t4SetPeriod(12)">12개월</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="t4-chart-wrap"><div class="t4-chart-title">📊 월별 매출/지출/순이익</div><canvas id="t4-revenue-chart" class="t4-chart-canvas"></canvas></div>
+        <div class="t4-chart-wrap"><div class="t4-chart-title">🏪 마켓별 매출 비중</div><canvas id="t4-market-chart" class="t4-chart-canvas"></canvas></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+        <div class="t4-chart-wrap"><div class="t4-chart-title">💸 카테고리별 지출</div><canvas id="t4-expense-chart" class="t4-chart-canvas"></canvas></div>
+        <div class="t4-chart-wrap"><div class="t4-chart-title">📈 ROI 추이</div><div id="t4-roi-panel"></div></div>
+    </div>
+    <div class="t4-chart-wrap" style="margin-top:16px;">
+        <div class="t4-chart-title">🎯 손익분기점 계산기</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+            <div><label style="font-size:10px;color:#94a3b8">월 목표 순이익 (원)</label><input type="number" id="t4-bep-target" placeholder="1000000" oninput="t4RenderBreakEven()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:12px;"></div>
+            <div><label style="font-size:10px;color:#94a3b8">건당 평균 순이익 (원)</label><input type="number" id="t4-bep-avg-profit" placeholder="5000" oninput="t4RenderBreakEven()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:12px;"></div>
+        </div>
+        <div id="t4-bep-result"></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+</div> <!-- /#page-finance -->
+
+        
+
+        <div class="page" id="page-setup">
+<div style="max-width:800px;margin:0 auto;padding:16px 0;">
+    <div class="t7-panel"><div class="t7-panel-header">🔗 Apps Script 연결</div><div id="t7-script-section"></div></div>
+    <div class="t7-panel"><div class="t7-panel-header">🏪 도매사이트 관리</div><div id="t7-wholesale-section"></div></div>
+    <div class="t7-panel"><div class="t7-panel-header">🏷️ 마켓 API 키</div><div id="t7-market-keys"></div></div>
+    <div class="t7-panel"><div class="t7-panel-header">🤖 AI 서비스 키</div><div id="t7-ai-keys"></div></div>
+    <div class="t7-panel"><div class="t7-panel-header">🔒 보안 설정</div><div id="t7-pin-section"></div></div>
+    <div class="t7-panel"><div class="t7-panel-header">💾 데이터 관리</div><div id="t7-data-section"></div></div>
+</div>
+</div> <!-- /#page-setup -->
+
+  </div>
+</div>
+<!-- end content-area & app-wrapper -->
+
+<div id="pin-modal" class="v5-modal-overlay" style="display:none; z-index:9999;">
+    <div class="v5-modal-content" style="max-width:320px; text-align:center; padding:30px; border:2px solid var(--accent); background:var(--surface1); box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+        <div style="font-size:40px; margin-bottom:16px;">🛡️</div>
+        <h2 style="font-size:20px; font-weight:900; color:var(--text); margin-bottom:10px;">Security Lock</h2>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">시스템 액세스를 위해<br>4자리 마스터 PIN을 입력하십시오.</p>
+        <div style="display:flex; justify-content:center; gap:10px; margin-bottom:24px;">
+            <input type="password" id="pin-digit" maxlength="4" placeholder="••••" style="width:140px; height:50px; font-size:28px; text-align:center; letter-spacing:10px; border:2px solid var(--border); border-radius:12px; background:var(--surface2); color:var(--accent);" autofocus onkeydown="if(event.key==='Enter') verifyPin()">
+        </div>
+        <div id="pin-error-msg" style="display:none; color:#ef4444; font-size:12px; font-weight:700; margin-bottom:12px; min-height:18px;"></div>
+        <button type="button" class="primary-btn" onclick="verifyPin()" style="width:100%; height:50px; font-weight:bold; font-size:16px; border-radius:12px; cursor:pointer;">🔒 시스템 해제</button>
+        <div style="margin-top:20px; font-size:11px; color:var(--text-muted);">
+            PIN을 잊으셨나요? <span style="color:var(--danger); cursor:pointer; text-decoration:underline;" onclick="signOut()">로그아웃 후 초기화</span>
+        </div>
+    </div>
+</div>
+
+<!-- ★ SystemLogger 터미널 콘솔 UI -->
+<div id="sys-console">
+  <div id="sys-console-header">
+    <span>🖥️ SYSTEM CONSOLE</span>
+    <div>
+      <button onclick="SystemLogger.clear()" title="초기화">🗑️</button>
+      <button onclick="SystemLogger.toggle()" title="닫기">✕</button>
+    </div>
+  </div>
+  <div id="sys-console-body"></div>
+</div>
+<button id="sys-console-fab" onclick="SystemLogger.toggle()" title="시스템 콘솔">
+  🖥️
+  <span id="sys-console-badge">0</span>
+</button>
+<!-- ═══ T1~T7 모듈 (DOM 로드 후 실행) ═══ -->
+<script src="js/t1-sourcing.js"></script>
+<script src="js/t2-inventory.js"></script>
+<script src="js/t3-ledger.js"></script>
+<script src="js/t4-finance.js"></script>
+<script src="js/t5-studio.js"></script>
+<script src="js/t1-trend.js"></script>
+<script src="js/t5-market-register.js"></script>
+<script src="js/t6-oms.js"></script>
+<script src="js/t7-settings.js"></script>
+
+<!-- 기존 외부 모듈 -->
+<script src="js/supplier-db.js"></script>
+<script src="js/market-register.js"></script>
+<script src="js/ai-agent.js"></script>
+<script src="js/crm-db.js"></script>
+
+<!-- ★ Phase 3: AI 어시스턴트 플로팅 위젯 -->
+<div id="ai-agent-widget" style="display:none;flex-direction:column;position:fixed;bottom:80px;right:20px;width:380px;max-height:520px;background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);border-radius:20px;border:1px solid rgba(255,255,255,0.6);box-shadow:0 20px 60px rgba(0,0,0,0.15);z-index:9500;overflow:hidden;">
+    <div style="padding:14px 18px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-weight:800;font-size:14px;">🤖 소싱 AI 어시스턴트</span>
+        <button onclick="AIAgent.toggle()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:16px;">✕</button>
+    </div>
+    <div id="ai-agent-body" style="flex:1;overflow-y:auto;padding:14px;min-height:250px;max-height:350px;"></div>
+    <div style="padding:10px 14px;border-top:1px solid rgba(0,0,0,0.06);display:flex;gap:8px;">
+        <input type="text" id="ai-agent-input" placeholder="무엇을 도와드릴까요?" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:10px;font-size:12px;">
+        <button onclick="AIAgent.send()" style="padding:8px 14px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px;">✈</button>
+    </div>
+</div>
+<button onclick="AIAgent.toggle()" style="position:fixed;bottom:80px;right:20px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;border:none;cursor:pointer;font-size:24px;box-shadow:0 6px 20px rgba(99,102,241,0.4);z-index:9400;transition:all 0.3s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">🤖</button>
+<script src="js/core/app-init.js"></script>
+<script src="js/category-explorer.js"></script>
+<script src="js/coupang-api.js"></script>
+<script src="js/v7-cart.js"></script>
+<script src="js/t2-receiver.js"></script>
+<!-- [V7 Ultimate] CSS 보완 + JS 잔여 DOM 정리 (검색 엔진 보호) -->
+<script src="js/v7-dom-cleanup.js"></script>
+</body>
+</html>

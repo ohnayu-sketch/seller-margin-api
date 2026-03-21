@@ -1,0 +1,174 @@
+<!-- ═══════════════════════════════════════════════════
+     T5: 마케팅 스튜디오 — HTML 템플릿
+     파일: index.html의 <div class="page" id="page-studio"> 안에 삽입
+     ═══════════════════════════════════════════════════ -->
+
+<div style="max-width:1400px;margin:0 auto;padding:16px 0;">
+
+    <!-- 대기열 패널 (T1 대량소싱 연동) -->
+    <div id="t5-queue-panel" class="t5-panel" style="display:none;"></div>
+
+    <!-- 2단 레이아웃: 좌=입력, 우=미리보기 -->
+    <div class="t5-layout">
+
+        <!-- ═══ 좌측: 입력 패널 ═══ -->
+        <div>
+            <div class="t5-panel">
+                <div class="t5-panel-header">
+                    <span>🎨 AI 상세페이지 생성기</span>
+                    <span class="t5-badge-new">v7</span>
+                </div>
+
+                <!-- 상품명 -->
+                <div class="t5-form-group">
+                    <label>📦 상품명</label>
+                    <input type="text" id="t5-product-name" placeholder="예: 프리미엄 스테인리스 텀블러 500ml" oninput="t5UpdatePreview()">
+                </div>
+
+                <!-- 상품 설명 -->
+                <div class="t5-form-group">
+                    <label>📝 상품 설명 (AI가 보강)</label>
+                    <textarea id="t5-product-desc" rows="3" placeholder="간단한 설명을 입력하면 AI가 매력적인 카피로 변환합니다" oninput="t5UpdatePreview()"></textarea>
+                </div>
+
+                <!-- 이미지 URL (다중) -->
+                <div class="t5-form-group">
+                    <label>🖼️ 이미지 URL (줄바꿈으로 여러 장)</label>
+                    <textarea id="t5-image-urls" rows="2" placeholder="https://image1.jpg&#10;https://image2.jpg&#10;(첫 번째가 대표 이미지)" oninput="t5UpdatePreview()"></textarea>
+                </div>
+
+                <!-- 특장점 -->
+                <div class="t5-form-group">
+                    <label>⭐ 특장점 (줄바꿈 구분)</label>
+                    <textarea id="t5-features" rows="4" placeholder="보온 12시간 유지&#10;BPA Free 친환경 소재&#10;세련된 매트 블랙 디자인&#10;원터치 오픈 뚜껑" oninput="t5UpdatePreview()"></textarea>
+                </div>
+
+                <!-- 가격 + 뱃지 -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div class="t5-form-group">
+                        <label>💰 판매가</label>
+                        <input type="number" id="t5-price" placeholder="29900" oninput="t5UpdatePreview()">
+                    </div>
+                    <div class="t5-form-group">
+                        <label>🏷️ 뱃지 문구</label>
+                        <input type="text" id="t5-badge" placeholder="BEST SELLER" oninput="t5UpdatePreview()">
+                    </div>
+                </div>
+
+                <!-- SEO 키워드 표시 -->
+                <div class="t5-seo-bar">
+                    <strong>🔑 SEO:</strong> <span id="t5-seo-keywords" style="color:#94a3b8;">AI 생성 시 자동 추출</span>
+                </div>
+
+                <!-- 템플릿 선택 (8종) -->
+                <div class="t5-form-group">
+                    <label>🎯 템플릿 스타일</label>
+                    <div class="t5-tpl-grid">
+                        <button class="t5-tpl-btn active" data-tpl="clean" onclick="t5SetTemplate('clean')">
+                            <span class="t5-tpl-icon">✨</span><span class="t5-tpl-name">깔끔</span><span class="t5-tpl-desc">화이트</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="premium" onclick="t5SetTemplate('premium')">
+                            <span class="t5-tpl-icon">💎</span><span class="t5-tpl-name">프리미엄</span><span class="t5-tpl-desc">다크</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="trendy" onclick="t5SetTemplate('trendy')">
+                            <span class="t5-tpl-icon">🔥</span><span class="t5-tpl-name">트렌디</span><span class="t5-tpl-desc">오렌지</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="minimal" onclick="t5SetTemplate('minimal')">
+                            <span class="t5-tpl-icon">🤍</span><span class="t5-tpl-name">미니멀</span><span class="t5-tpl-desc">여백</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="tech" onclick="t5SetTemplate('tech')">
+                            <span class="t5-tpl-icon">💻</span><span class="t5-tpl-name">테크</span><span class="t5-tpl-desc">블루다크</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="nature" onclick="t5SetTemplate('nature')">
+                            <span class="t5-tpl-icon">🌿</span><span class="t5-tpl-name">내추럴</span><span class="t5-tpl-desc">그린</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="kids" onclick="t5SetTemplate('kids')">
+                            <span class="t5-tpl-icon">🧸</span><span class="t5-tpl-name">키즈</span><span class="t5-tpl-desc">파스텔</span>
+                        </button>
+                        <button class="t5-tpl-btn" data-tpl="food" onclick="t5SetTemplate('food')">
+                            <span class="t5-tpl-icon">🍽️</span><span class="t5-tpl-name">푸드</span><span class="t5-tpl-desc">따뜻한톤</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 마켓 규격 -->
+                <div class="t5-form-group">
+                    <label>📐 마켓 규격</label>
+                    <div class="t5-mkt-row">
+                        <button class="t5-mkt-btn active" data-market="smartstore" onclick="t5SetMarket('smartstore')">🟢 스마트스토어<br><span style="font-size:8px;color:var(--text-muted)">860px</span></button>
+                        <button class="t5-mkt-btn" data-market="coupang" onclick="t5SetMarket('coupang')">🟠 쿠팡<br><span style="font-size:8px;color:var(--text-muted)">780px</span></button>
+                        <button class="t5-mkt-btn" data-market="gmarket" onclick="t5SetMarket('gmarket')">🔵 G마켓<br><span style="font-size:8px;color:var(--text-muted)">860px</span></button>
+                        <button class="t5-mkt-btn" data-market="11st" onclick="t5SetMarket('11st')">🔴 11번가<br><span style="font-size:8px;color:var(--text-muted)">800px</span></button>
+                        <button class="t5-mkt-btn" data-market="tmon" onclick="t5SetMarket('tmon')">🟣 티몬<br><span style="font-size:8px;color:var(--text-muted)">900px</span></button>
+                    </div>
+                </div>
+
+                <!-- AI 카피 생성 -->
+                <button class="t5-btn-primary" onclick="t5GenerateAICopy()">🤖 AI 카피라이팅 + SEO 키워드 생성</button>
+
+                <!-- 복사/다운로드 -->
+                <div class="t5-btn-row">
+                    <button class="t5-btn-secondary" onclick="t5CopyHTML()">📋 HTML 복사</button>
+                    <button class="t5-btn-secondary" onclick="t5DownloadHTML()">💾 HTML 다운로드</button>
+                </div>
+            </div>
+
+            <!-- ═══ SEO 최적화 상품명 ═══ -->
+            <div class="t5-panel">
+                <div class="t5-panel-header">
+                    <span>🎯 SEO 최적화 상품명 생성기</span>
+                    <span class="t5-badge-new">NEW</span>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted,#94a3b8);margin-bottom:10px;line-height:1.5;">
+                    네이버 검색광고 키워드 데이터를 분석하여<br>검색 노출에 최적화된 상품명 5개를 자동 생성합니다.
+                </div>
+                <button class="t5-btn-primary" onclick="t5GenerateSEOTitle()" style="background:rgba(59,130,246,0.9);">🔍 SEO 상품명 생성 (키워드 분석)</button>
+                <div id="t5-seo-title-result" style="display:none;margin-top:10px;"></div>
+            </div>
+
+            <!-- ═══ AI 배너 이미지 생성기 ═══ -->
+            <div class="t5-panel">
+                <div class="t5-panel-header">
+                    <span>🖼️ AI 배너 이미지 생성기</span>
+                    <span class="t5-badge-new">NEW</span>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted,#94a3b8);margin-bottom:10px;line-height:1.5;">
+                    입력한 상품 정보와 이미지로 마켓/SNS용 배너를 자동 생성합니다.<br>
+                    템플릿 색상이 배너에도 적용됩니다.
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;">
+                    <button class="t5-btn-secondary" onclick="t5GenerateBanner('hero')" style="font-size:10px;padding:10px 4px;">
+                        <span style="font-size:16px;display:block;margin-bottom:2px;">🏠</span>
+                        대표 배너<br><span style="font-size:8px;color:var(--text-muted,#94a3b8)">860×500</span>
+                    </button>
+                    <button class="t5-btn-secondary" onclick="t5GenerateBanner('feature')" style="font-size:10px;padding:10px 4px;">
+                        <span style="font-size:16px;display:block;margin-bottom:2px;">⭐</span>
+                        특장점<br><span style="font-size:8px;color:var(--text-muted,#94a3b8)">860×400</span>
+                    </button>
+                    <button class="t5-btn-secondary" onclick="t5GenerateBanner('cta')" style="font-size:10px;padding:10px 4px;">
+                        <span style="font-size:16px;display:block;margin-bottom:2px;">🛒</span>
+                        CTA<br><span style="font-size:8px;color:var(--text-muted,#94a3b8)">860×300</span>
+                    </button>
+                    <button class="t5-btn-secondary" onclick="t5GenerateBanner('sns')" style="font-size:10px;padding:10px 4px;">
+                        <span style="font-size:16px;display:block;margin-bottom:2px;">📱</span>
+                        SNS<br><span style="font-size:8px;color:var(--text-muted,#94a3b8)">1080×1080</span>
+                    </button>
+                </div>
+                <button class="t5-btn-primary" onclick="t5GenerateAllBanners()" style="background:rgba(168,85,247,0.9);margin-bottom:8px;">🎨 4종 배너 일괄 생성</button>
+                <div id="t5-banner-preview" style="margin-top:8px;"></div>
+            </div>
+        </div>
+
+        <!-- ═══ 우측: 미리보기 ═══ -->
+        <div>
+            <div class="t5-preview-wrap">
+                <div class="t5-preview-header">
+                    <span>👁️ 상세페이지 미리보기</span>
+                    <span class="t5-char-count" id="t5-char-count">0자</span>
+                </div>
+                <iframe id="t5-preview-frame" sandbox="allow-same-origin"></iframe>
+            </div>
+        </div>
+
+    </div>
+</div>

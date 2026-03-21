@@ -1,0 +1,232 @@
+<!-- ═══════════════════════════════════════════════════
+     T2: 재고/사입 관제 — HTML 템플릿
+     파일: index.html의 <div class="page" id="page-inventory"> 안에 삽입
+     ═══════════════════════════════════════════════════ -->
+
+<div style="max-width:1400px;margin:0 auto;padding:16px 0;">
+
+    <!-- 대시보드 -->
+    <div id="t2-dashboard"></div>
+
+    <!-- 대기열 (T1에서 넘어온 상품) -->
+    <div id="t2-pending-list" style="display:none;" class="t2-panel"></div>
+
+    <!-- 2단 레이아웃: 좌=시뮬레이터, 우=상품관리 -->
+    <div class="t2-layout">
+
+        <!-- ═══ 좌측: 마진 시뮬레이터 ═══ -->
+        <div>
+            <!-- 시뮬레이터 모드 전환 -->
+            <div style="display:flex;gap:4px;margin-bottom:10px;">
+                <button class="t2-sim-tab active" data-mode="consign" onclick="t2SetSimMode('consign')">🖥️ 온라인 위탁</button>
+                <button class="t2-sim-tab" data-mode="global" onclick="t2SetSimMode('global')">✈️ 해외 사입</button>
+                <button class="t2-sim-tab" data-mode="field" onclick="t2SetSimMode('field')">🏪 현장 사입</button>
+            </div>
+
+            <!-- 온라인 위탁 시뮬레이터 -->
+            <div id="t2-sim-consign" class="t2-panel">
+                <div class="t2-panel-header">🖥️ 온라인 위탁 마진 시뮬레이터</div>
+
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div>
+                        <label style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;display:block;">상품명</label>
+                        <input type="text" id="t2-product-name" placeholder="상품명 입력" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+
+                    <div>
+                        <label style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;display:block;">도매 원가 (원)</label>
+                        <input type="number" id="t2-cost" placeholder="0" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">도매 배송비</label>
+                            <input type="number" id="t2-supply-ship" value="3000" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">마켓 배송비</label>
+                            <input type="number" id="t2-market-ship" value="3000" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 80px;gap:8px;">
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">판매 마켓</label>
+                            <select id="t2-market-select" onchange="document.getElementById('t2-fee').value=this.selectedOptions[0]?.dataset?.fee||5.5;t2RecalcMargin();" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;">
+                                <option value="smartstore" data-fee="5.5">스마트스토어 (5.5%)</option>
+                                <option value="coupang" data-fee="10.8">쿠팡 (10.8%)</option>
+                                <option value="gmarket" data-fee="12">G마켓 (12%)</option>
+                                <option value="auction" data-fee="12">옥션 (12%)</option>
+                                <option value="11st" data-fee="11">11번가 (11%)</option>
+                                <option value="wemakeprice" data-fee="9">위메프 (9%)</option>
+                                <option value="tmon" data-fee="9">티몬 (9%)</option>
+                                <option value="kakao" data-fee="8">카카오쇼핑 (8%)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">수수료%</label>
+                            <input type="number" id="t2-fee" value="5.5" step="0.1" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">희망 마진율</label>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <input type="range" id="t2-target-margin-slider" min="1" max="80" value="15" style="flex:1;" oninput="document.getElementById('t2-target-margin').value=this.value;t2RecalcMargin();">
+                            <input type="number" id="t2-target-margin" value="15" style="width:50px;padding:4px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;text-align:center;" oninput="document.getElementById('t2-target-margin-slider').value=this.value;t2RecalcMargin();">
+                            <span style="font-size:11px;color:var(--text-muted);">%</span>
+                        </div>
+                        <div style="display:flex;gap:4px;margin-top:4px;">
+                            <button class="t2-mini-btn" onclick="document.getElementById('t2-target-margin').value=10;document.getElementById('t2-target-margin-slider').value=10;t2RecalcMargin();">10%</button>
+                            <button class="t2-mini-btn" onclick="document.getElementById('t2-target-margin').value=20;document.getElementById('t2-target-margin-slider').value=20;t2RecalcMargin();">20%</button>
+                            <button class="t2-mini-btn" onclick="document.getElementById('t2-target-margin').value=30;document.getElementById('t2-target-margin-slider').value=30;t2RecalcMargin();">30%</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">수량</label>
+                        <input type="number" id="t2-quantity" value="1" min="1" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+
+                    <!-- 마진 계산 결과 -->
+                    <div id="t2-margin-result" style="display:none;"></div>
+
+                    <!-- 8마켓 비교 -->
+                    <div id="t2-market-compare" style="display:none;"></div>
+
+                    <!-- 위탁↔사입 전환 시뮬레이션 -->
+                    <div class="t2-panel" style="background:rgba(167,139,250,0.04);border-color:rgba(167,139,250,0.15);">
+                        <div class="t2-panel-header">🔄 위탁 ↔ 사입 전환 시뮬레이션</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                            <div>
+                                <label style="font-size:10px;color:var(--text-muted);">사입 MOQ</label>
+                                <input type="number" id="t2-cvd-moq" value="10" min="1" style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;">
+                            </div>
+                            <div>
+                                <label style="font-size:10px;color:var(--text-muted);">사입 할인율 %</label>
+                                <input type="number" id="t2-cvd-discount" value="15" style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;">
+                            </div>
+                        </div>
+                        <button onclick="t2CompareConsignVsDirect()" style="width:100%;padding:8px;border-radius:6px;border:1px solid #a78bfa;background:rgba(167,139,250,0.08);color:#a78bfa;font-size:11px;font-weight:600;cursor:pointer;">🔄 비교 분석</button>
+                        <div id="t2-cvd-result" style="display:none;margin-top:10px;"></div>
+                    </div>
+
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">메모</label>
+                        <textarea id="t2-memo" placeholder="거래처 정보, 특이사항..." style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;min-height:60px;resize:vertical;"></textarea>
+                    </div>
+
+                    <button onclick="t2SaveFromSimulator()" style="width:100%;padding:12px;border-radius:8px;border:none;background:var(--accent,#10b981);color:#0d0f14;font-size:13px;font-weight:700;cursor:pointer;">🚀 상품 확정 및 저장</button>
+                </div>
+            </div>
+
+            <!-- 해외 사입 계산기 -->
+            <div id="t2-sim-global" class="t2-panel" style="display:none;">
+                <div class="t2-panel-header">✈️ 해외 사입 Landed Cost 계산기</div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">중국 원문 가격 (¥)</label>
+                        <input type="number" id="t2-cny-price" placeholder="0" oninput="t2CalcLandedCost()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">환율 (1¥)</label>
+                            <input type="number" id="t2-exchange-rate" value="195" oninput="t2CalcLandedCost()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">관세율 (%)</label>
+                            <input type="number" id="t2-tariff" value="8" oninput="t2CalcLandedCost()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">물류/배대지 (원)</label>
+                        <input type="number" id="t2-global-shipping" value="0" oninput="t2CalcLandedCost()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;">
+                        <button class="t2-mini-btn" onclick="document.getElementById('t2-tariff').value=13;t2CalcLandedCost();">👕 의류 13%</button>
+                        <button class="t2-mini-btn" onclick="document.getElementById('t2-tariff').value=0;t2CalcLandedCost();">💻 전자 0%</button>
+                        <button class="t2-mini-btn" onclick="document.getElementById('t2-tariff').value=6.5;t2CalcLandedCost();">💄 화장품 6.5%</button>
+                        <button class="t2-mini-btn" onclick="document.getElementById('t2-tariff').value=8;t2CalcLandedCost();">🧸 장난감 8%</button>
+                    </div>
+                    <div id="t2-landed-result" style="display:none;"></div>
+                </div>
+            </div>
+
+            <!-- 현장 사입 -->
+            <div id="t2-sim-field" class="t2-panel" style="display:none;">
+                <div class="t2-panel-header">🏪 현장 사입 기록</div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">현장 매입 단가</label>
+                        <input type="number" id="t2-field-price" placeholder="0" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">매입 수량</label>
+                        <input type="number" id="t2-field-qty" value="1" min="1" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    </div>
+                    <button onclick="document.getElementById('t2-cost').value=document.getElementById('t2-field-price').value;t2SetSimMode('consign');t2RecalcMargin();" style="width:100%;padding:8px;border-radius:6px;border:none;background:var(--accent);color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer;">💰 마진 계산으로 이동</button>
+                </div>
+            </div>
+
+            <!-- FIFO 재고 단가 -->
+            <div class="t2-panel">
+                <div class="t2-panel-header">📊 FIFO 재고 단가 분석 <button class="t2-mini-btn" onclick="t2RenderFIFO()" style="margin-left:auto;">🔄 재계산</button></div>
+                <div id="t2-fifo-panel"></div>
+            </div>
+
+            <!-- 공급업체 관리 -->
+            <div class="t2-panel">
+                <div class="t2-panel-header">🏢 공급업체 <button class="t2-mini-btn" onclick="t2ShowVendorModal()" style="margin-left:auto;">+ 추가</button></div>
+                <div id="t2-vendor-list"></div>
+            </div>
+
+            <!-- 공급업체 등록 모달 -->
+            <div id="t2-vendor-modal" class="t2-panel" style="display:none;">
+                <div class="t2-panel-header">🏢 공급업체 등록/수정</div>
+                <input type="hidden" id="t2-vendor-id">
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <input type="text" id="t2-vendor-name" placeholder="상호명 (필수)" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    <input type="text" id="t2-vendor-rep" placeholder="대표자 이름" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    <input type="text" id="t2-vendor-phone" placeholder="연락처" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    <input type="text" id="t2-vendor-address" placeholder="주소" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    <select id="t2-vendor-grade" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;">
+                        <option value="A">A등급 (주요 거래처)</option>
+                        <option value="B" selected>B등급 (일반 거래처)</option>
+                        <option value="C">C등급 (신규/테스트)</option>
+                    </select>
+                    <textarea id="t2-vendor-memo" placeholder="메모 (영업시간, 결제 방식 등)" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;min-height:50px;resize:vertical;"></textarea>
+                    <div style="display:flex;gap:8px;">
+                        <button onclick="t2SaveVendor()" style="flex:1;padding:8px;border-radius:6px;border:none;background:var(--accent);color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer;">💾 저장</button>
+                        <button onclick="t2CloseVendorModal()" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;">취소</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ 우측: 상품 관리 ═══ -->
+        <div>
+            <!-- 툴바: 필터 + 뷰 전환 + 정렬 -->
+            <div class="t2-toolbar">
+                <button class="t2-filter-btn active" data-status="all" onclick="t2SetFilter('all')">전체</button>
+                <button class="t2-filter-btn" data-status="sourcing" onclick="t2SetFilter('sourcing')">🔍 소싱중</button>
+                <button class="t2-filter-btn" data-status="stocked" onclick="t2SetFilter('stocked')">📦 입고</button>
+                <button class="t2-filter-btn" data-status="selling" onclick="t2SetFilter('selling')">🟢 판매중</button>
+                <button class="t2-filter-btn" data-status="soldout" onclick="t2SetFilter('soldout')">⬛ 품절</button>
+                <div style="margin-left:auto;display:flex;gap:4px;">
+                    <button class="t2-view-btn active" data-view="card" onclick="t2SetViewMode('card')">카드</button>
+                    <button class="t2-view-btn" data-view="list" onclick="t2SetViewMode('list')">리스트</button>
+                    <select onchange="t2SetSort(this.value)" style="padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:10px;">
+                        <option value="newest">최신순</option>
+                        <option value="margin">마진순</option>
+                        <option value="price">가격순</option>
+                        <option value="stock">재고순</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 상품 리스트 -->
+            <div id="t2-product-list"></div>
+        </div>
+
+    </div>
+</div>

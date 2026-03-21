@@ -1,0 +1,28 @@
+function showTab(name) {
+  try { localStorage.setItem('lastTab', name); } catch(e) {}
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', TAB_IDS[i] === name);
+  });
+  document.querySelectorAll('.tab-bar-item').forEach((t, i) => {
+    t.classList.toggle('active', TAB_IDS[i] === name);
+  });
+  document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.opacity = ''; });
+  const page = document.getElementById('page-' + name);
+  if (page) {
+    page.classList.add('active');
+    page.style.opacity = '0';
+    requestAnimationFrame(() => { requestAnimationFrame(() => { page.style.opacity = '1'; }); });
+  }
+
+  if (name === 'setup') {
+    const e1 = localStorage.getItem('allowed-email-1') || '';
+    const e2 = localStorage.getItem('allowed-email-2') || '';
+    const email1El = document.getElementById('email-1-input');
+    const email2El = document.getElementById('email-2-input');
+    if (email1El) email1El.value = e1;
+    if (email2El) email2El.value = e2;
+    if (typeof loadApiKeys === 'function') loadApiKeys();
+  }
+
+  syncStateAndRender(name);
+}

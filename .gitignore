@@ -39,3 +39,6 @@ github/
 __pycache__/
 *.pyc
 업데이트_자동화.bat
+
+# 민감 정보
+API_KEYS.md

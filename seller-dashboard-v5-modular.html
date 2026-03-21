@@ -1,0 +1,2258 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<!-- [Phase 4] Chart.js CDN for T4 Finance 렌더링 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0" name="viewport"/>
+<script src="config.js"></script>
+<script src="js/core.js"></script>
+<script src="js/main-logic.js"></script>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+<meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
+<meta content="셀러마진" name="apple-mobile-web-app-title"/>
+<title>셀러 마진 계산기</title>
+<script async="" defer="" src="https://accounts.google.com/gsi/client"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=Outfit:wght@300;400;500;600;700;800;900&amp;family=DM+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css">
+<script src="js/boot.js"></script>
+.stl-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scroll-behavior:smooth;}
+.stl-scroll::-webkit-scrollbar{height:6px;}.stl-scroll::-webkit-scrollbar-thumb{background:var(--accent);border-radius:3px;}
+.stl-wrap{display:grid;grid-template-columns:repeat(12,minmax(120px,1fr));gap:0;min-width:1500px;}
+.stl-month{display:flex;flex-direction:column;border-right:1px solid var(--border);}
+.stl-month:last-child{border-right:none;}
+.stl-hdr{text-align:center;font-size:12px;font-weight:700;padding:6px 4px;border-bottom:1px solid var(--border);user-select:none;}
+.stl-hdr.now{background:rgba(34,197,94,0.2);color:#16a34a;font-weight:900;font-size:13px;}
+.stl-hdr.soon{background:rgba(245,158,11,0.1);}
+.stl-bar{height:5px;background:var(--border);position:relative;}
+.stl-bar.now{background:linear-gradient(90deg,#22c55e,#16a34a);}
+.stl-bar.soon{background:#f59e0b;}
+.stl-marker{position:absolute;top:-5px;left:50%;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:#ef4444;border:2px solid #fff;box-shadow:0 0 10px rgba(239,68,68,0.6);z-index:2;animation:pulse-marker 2s infinite;}
+@keyframes pulse-marker{0%,100%{box-shadow:0 0 6px rgba(239,68,68,0.5);}50%{box-shadow:0 0 16px rgba(239,68,68,0.8);}}
+.stl-season{font-size:10px;color:var(--text-muted);text-align:center;padding:2px 0;border-bottom:1px dashed var(--border);}
+.stl-events{display:flex;flex-direction:column;gap:2px;padding:4px 3px;min-height:32px;}
+.stl-ev{font-size:11px;padding:4px 6px;border-radius:6px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;transition:all 0.15s;line-height:1.4;}
+.stl-ev:hover{transform:scale(1.06);box-shadow:0 3px 12px rgba(0,0,0,0.2);z-index:5;position:relative;}
+.stl-ev.hot{background:rgba(34,197,94,0.2);border:1px solid #22c55e;font-weight:700;}
+.stl-ev.warm{background:rgba(245,158,11,0.14);border:1px solid #f59e0b;}
+.stl-ev.cool{background:rgba(148,163,184,0.06);border:1px solid transparent;}
+.daily-brief{display:flex;align-items:center;gap:12px;padding:8px 12px;background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(59,130,246,0.06));border:1px solid rgba(34,197,94,0.2);border-radius:10px;margin-bottom:6px;cursor:pointer;transition:all 0.2s;}
+.daily-brief:hover{background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(59,130,246,0.1));transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.08);}
+.daily-brief .brief-icon{font-size:28px;flex-shrink:0;}
+.daily-brief .brief-body{flex:1;min-width:0;}
+.daily-brief .brief-title{font-size:12px;font-weight:800;color:var(--text);margin-bottom:2px;}
+.daily-brief .brief-kw{display:flex;flex-wrap:wrap;gap:3px;}
+.daily-brief .brief-chip{font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);color:var(--accent);cursor:pointer;}
+.daily-brief .brief-chip:hover{background:rgba(34,197,94,0.25);}
+.daily-brief .brief-dday{font-size:20px;font-weight:900;color:var(--accent);flex-shrink:0;text-align:center;min-width:60px;}
+/* ★ V5.5 HTS 스크리너 CSS */
+.ag-screener-row{background:transparent;transition:all 0.2s cubic-bezier(0.4,0,0.2,1);}
+.ag-screener-row:hover{background:rgba(255,255,255,0.95);transform:translateY(-2px);box-shadow:0 8px 16px rgba(0,0,0,0.06);border-radius:12px;border-bottom:none;z-index:10;position:relative;}
+.badge-green{background:#d1fae5;color:#059669;}
+.badge-yellow{background:#fef3c7;color:#d97706;}
+.badge-red{background:#fee2e2;color:#dc2626;}
+/* ★ 좌측 사이드바 Sticky */
+#page-sourcing .calc-left-pane{position:sticky;top:70px;align-self:flex-start;max-height:calc(100vh - 90px);overflow-y:auto;}
+/* ★ AI 에이전트 셸 */
+#coo-pending-tray,#vcore-chat-widget{display:none;}
+/* ★ SystemLogger 터미널 콘솔 */
+#sys-console{position:fixed;bottom:0;left:0;right:0;height:220px;background:rgba(15,23,42,0.92);backdrop-filter:blur(20px);border-top:1px solid rgba(96,165,250,0.3);z-index:9500;display:none;flex-direction:column;font-family:'JetBrains Mono','Fira Code','Consolas',monospace;}
+#sys-console-header{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:rgba(30,41,59,0.8);border-bottom:1px solid rgba(255,255,255,0.06);}
+#sys-console-header span{color:#60a5fa;font-size:12px;font-weight:700;letter-spacing:0.5px;}
+#sys-console-header button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:14px;padding:4px 8px;border-radius:4px;transition:all 0.15s;}
+#sys-console-header button:hover{background:rgba(255,255,255,0.1);color:#fff;}
+#sys-console-body{flex:1;overflow-y:auto;padding:8px 16px;font-size:11px;line-height:1.6;}
+#sys-console-body::-webkit-scrollbar{width:4px;}#sys-console-body::-webkit-scrollbar-thumb{background:rgba(96,165,250,0.3);border-radius:4px;}
+.sys-log-line{padding:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:logFadeIn 0.2s ease;}
+@keyframes logFadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+#sys-console-fab{position:fixed;bottom:20px;right:20px;width:48px;height:48px;background:linear-gradient(135deg,#1e293b,#334155);border:1px solid rgba(96,165,250,0.4);border-radius:14px;color:#60a5fa;font-size:18px;cursor:pointer;z-index:9501;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,0.3);transition:all 0.2s;}
+#sys-console-fab:hover{transform:scale(1.1);border-color:#60a5fa;box-shadow:0 8px 32px rgba(96,165,250,0.4);}
+#sys-console-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;background:#ef4444;color:#fff;border-radius:9px;font-size:9px;font-weight:800;display:none;align-items:center;justify-content:center;padding:0 4px;}
+</style>
+
+
+
+        <!-- [NEW] T7에서 이관된 소싱 성과 위젯 -->
+        <div class="panel" style="flex:1;">
+            <div class="panel-header">📊 AI 소싱 성과 및 전환율</div>
+            <div class="panel-body">
+                <div class="stats-mini-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; margin-bottom:15px;">
+                    <div class="stat-mini-card"><label>총 상품수</label><span id="stat-total">0</span></div>
+                    <div class="stat-mini-card"><label>평균 마진</label><span id="stat-avg">0%</span></div>
+                    <div class="stat-mini-card"><label>최고 이익</label><span id="stat-best-profit">0원</span></div>
+                    <div class="stat-mini-card"><label>종합 전환율</label><span id="stat-conversion">0%</span></div>
+                </div>
+                <div id="stats-conversion-detail" style="font-size:13px;color:var(--text-muted); margin-bottom:10px;"></div>
+                <div id="top5-list" style="margin-top:10px;"></div>
+                <div id="market-stats" style="display:none;"></div>
+                <div id="stats-top-products" style="font-size:12px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="calc-container">
+        <div class="calc-left-pane">
+            <!-- 🔮 V5 Opportunity Radar -->
+            <div class="panel" id="v5-radar-panel">
+                <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span>🔮 AI 소싱 기회 레이더</span>
+                        <button class="refresh-btn" onclick="updateOpportunityRadar()">🔄</button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div id="v5-radar-loading" class="loading-state">기회 포착 중...</div>
+                    <div id="v5-radar-list" class="opportunity-list">
+                        <!-- Opportunity cards injected by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ★ Sprint #2: 마진 필터 슬라이더 -->
+            <div class="panel" style="margin-top:12px;">
+                <div class="panel-header" style="font-size:13px;">🎯 마진 필터 설정</div>
+                <div class="panel-body" style="padding:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <span style="font-size:11px;color:var(--text-muted);">최소 마진율</span>
+                        <span id="margin-slider-value" style="font-size:13px;font-weight:800;color:var(--accent);">15%</span>
+                    </div>
+                    <input type="range" id="margin-slider" min="5" max="40" step="1" value="15" style="width:100%;accent-color:var(--accent);cursor:pointer;" oninput="updateMarginFilter(this.value)">
+                    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);margin-top:4px;">
+                        <span>5%</span><span>15%</span><span>25%</span><span>40%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== V5.5 카테고리 트리 필터 ===== -->
+            <div class="panel" style="margin-top:12px;">
+                <div class="panel-header" style="font-size:13px;">🗂️ 카테고리 소싱</div>
+                <div class="panel-body" style="padding:8px;">
+                  <div id="category-tree" style="font-size:11px; line-height:2;">
+                    <div class="cat-group">
+                      <div class="cat-l1" onclick="toggleCatGroup(this)" style="cursor:pointer;font-weight:800;color:var(--text);">🏠 생활/건강 <span style="font-size:9px;color:var(--text-muted);">▼</span></div>
+                      <div class="cat-children" style="padding-left:12px;display:none;">
+                        <div class="cat-l2" onclick="toggleCatGroup(this)" style="cursor:pointer;font-weight:600;color:var(--text-muted);">🏕️ 캠핑 <span style="font-size:9px;">▼</span></div>
+                        <div class="cat-children" style="padding-left:12px;display:none;">
+                          <div class="cat-leaf" onclick="searchByCategory('캠핑의자')" style="cursor:pointer;color:var(--accent);">└ 캠핑의자</div>
+                          <div class="cat-leaf" onclick="searchByCategory('캠핑테이블')" style="cursor:pointer;color:var(--accent);">└ 캠핑테이블</div>
+                          <div class="cat-leaf" onclick="searchByCategory('캠핑랜턴')" style="cursor:pointer;color:var(--accent);">└ 캠핑랜턴</div>
+                        </div>
+                        <div class="cat-l2" onclick="toggleCatGroup(this)" style="cursor:pointer;font-weight:600;color:var(--text-muted);">🧘 건강 <span style="font-size:9px;">▼</span></div>
+                        <div class="cat-children" style="padding-left:12px;display:none;">
+                          <div class="cat-leaf" onclick="searchByCategory('요가매트')" style="cursor:pointer;color:var(--accent);">└ 요가매트</div>
+                          <div class="cat-leaf" onclick="searchByCategory('마사지건')" style="cursor:pointer;color:var(--accent);">└ 마사지건</div>
+                          <div class="cat-leaf" onclick="searchByCategory('텀블러')" style="cursor:pointer;color:var(--accent);">└ 텀블러</div>
+                        </div>
+                        <div class="cat-l2" onclick="toggleCatGroup(this)" style="cursor:pointer;font-weight:600;color:var(--text-muted);">🍳 주방 <span style="font-size:9px;">▼</span></div>
+                        <div class="cat-children" style="padding-left:12px;display:none;">
+                          <div class="cat-leaf" onclick="searchByCategory('에어프라이어')" style="cursor:pointer;color:var(--accent);">└ 에어프라이어</div>
+                          <div class="cat-leaf" onclick="searchByCategory('밀폐용기')" style="cursor:pointer;color:var(--accent);">└ 밀폐용기</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="cat-group">
+                      <div class="cat-l1" onclick="toggleCatGroup(this)" style="cursor:pointer;font-weight:800;color:var(--text);">👜 패션/잡화 <span style="font-size:9px;color:var(--text-muted);">▼</span></div>
+                      <div class="cat-children" style="padding-left:12px;display:none;">
+                        <div class="cat-leaf" onclick="searchByCategory('에코백')" style="cursor:pointer;color:var(--accent);">└ 에코백</div>
+                        <div class="cat-leaf" onclick="searchByCategory('스마트워치밴드')" style="cursor:pointer;color:var(--accent);">└ 스마트워치밴드</div>
+                        <div class="cat-leaf" onclick="searchByCategory('양말')" style="cursor:pointer;color:var(--accent);">└ 양말</div>
+                      </div>
+                    </div>
+                    <div class="cat-group">
+                      <div class="cat-l1" onclick="toggleCatGroup(this)" style="cursor:pointer;font-weight:800;color:var(--text);">🔌 테크/가전 <span style="font-size:9px;color:var(--text-muted);">▼</span></div>
+                      <div class="cat-children" style="padding-left:12px;display:none;">
+                        <div class="cat-leaf" onclick="searchByCategory('블루투스 이어폰')" style="cursor:pointer;color:var(--accent);">└ 블루투스 이어폰</div>
+                        <div class="cat-leaf" onclick="searchByCategory('무선 충전기')" style="cursor:pointer;color:var(--accent);">└ 무선 충전기</div>
+                        <div class="cat-leaf" onclick="searchByCategory('LED 무드등')" style="cursor:pointer;color:var(--accent);">└ LED 무드등</div>
+                        <div class="cat-leaf" onclick="searchByCategory('보조배터리')" style="cursor:pointer;color:var(--accent);">└ 보조배터리</div>
+                      </div>
+                    </div>
+                    <div class="cat-group">
+                      <div class="cat-l1" onclick="toggleCatGroup(this)" style="cursor:pointer;font-weight:800;color:var(--text);">⛳ 스포츠/레저 <span style="font-size:9px;color:var(--text-muted);">▼</span></div>
+                      <div class="cat-children" style="padding-left:12px;display:none;">
+                        <div class="cat-leaf" onclick="searchByCategory('러닝화깔창')" style="cursor:pointer;color:var(--accent);">└ 러닝화깔창</div>
+                        <div class="cat-leaf" onclick="searchByCategory('짐볼')" style="cursor:pointer;color:var(--accent);">└ 짐볼</div>
+                        <div class="cat-leaf" onclick="searchByCategory('접이식자전거')" style="cursor:pointer;color:var(--accent);">└ 접이식자전거</div>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- 마진 범위 필터 -->
+                  <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border);">
+                    <label style="font-size:10px; font-weight:700; color:var(--text-muted);">📊 최소 마진율 필터</label>
+                    <input type="range" id="margin-filter-range" min="0" max="50" value="0" style="width:100%; margin-top:4px;"
+                      oninput="document.getElementById('margin-filter-val').textContent=this.value+'%'">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted);">
+                      <span>0%</span><span id="margin-filter-val">0%</span><span>50%</span>
+                    </div>
+                  </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="calc-center-pane">
+            <!-- ★ 소싱 인사이트 허브 (NEW) -->
+            <style>
+              /* ── 인사이트 허브 ── */
+              #sourcing-insight-hub { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; margin-bottom:16px; }
+              .insight-card { background:rgba(255,255,255,0.5); backdrop-filter:blur(16px); border-radius:14px; border:1px solid rgba(255,255,255,0.7); padding:16px 18px; box-shadow:0 4px 16px rgba(0,0,0,0.04); transition:all .3s cubic-bezier(.4,0,.2,1); }
+              .insight-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,0.08); border-color:rgba(16,185,129,0.4); }
+              .insight-weather { border-left:4px solid #f59e0b; }
+              .insight-festival { border-left:4px solid #8b5cf6; }
+              .insight-trend { border-left:4px solid #10b981; }
+              .insight-loading { border-left:4px solid #94a3b8; }
+              .insight-header { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+              .insight-icon { font-size:1.4rem; }
+              .insight-label { font-weight:700; font-size:0.9rem; color:#1e293b; flex:1; }
+              .insight-score { background:linear-gradient(135deg,#10b981,#059669); color:#fff; font-weight:800; font-size:0.75rem; padding:3px 10px; border-radius:20px; }
+              .insight-forecast { font-size:0.78rem; color:#64748b; margin-bottom:10px; padding:6px 10px; background:rgba(0,0,0,0.03); border-radius:8px; }
+              .insight-items { display:flex; flex-wrap:wrap; gap:6px; }
+              .insight-tag { background:linear-gradient(135deg,#f0fdf4,#dcfce7); color:#166534; font-size:0.75rem; font-weight:600; padding:4px 12px; border-radius:20px; cursor:pointer; border:1px solid rgba(22,101,52,0.15); transition:all .2s; }
+              .insight-tag:hover { background:#10b981; color:#fff; transform:scale(1.05); }
+              .insight-events { display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
+              .insight-event { font-size:0.75rem; color:#6d28d9; background:rgba(139,92,246,0.06); padding:3px 8px; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+              .insight-trend-list { display:flex; flex-direction:column; gap:4px; }
+              .insight-trend-row { display:flex; align-items:center; gap:8px; padding:4px 8px; border-radius:8px; background:rgba(16,185,129,0.04); }
+              .trend-rank { width:20px; height:20px; display:flex; align-items:center; justify-content:center; background:#10b981; color:#fff; font-size:0.65rem; font-weight:800; border-radius:50%; }
+              .trend-keyword { flex:1; font-size:0.8rem; font-weight:600; color:#1e293b; }
+              .trend-change { color:#10b981; font-weight:700; font-size:0.75rem; }
+              /* ── AI 레이더 실시간 스타일 ── */
+              .radar-item { padding:10px 12px; border-radius:10px; background:rgba(255,255,255,0.5); backdrop-filter:blur(8px); margin-bottom:6px; cursor:pointer; border:1px solid rgba(255,255,255,0.5); transition:all .2s; }
+              .radar-item:hover { background:rgba(16,185,129,0.1); border-color:#10b981; transform:translateX(4px); }
+              .radar-keyword { font-weight:700; font-size:0.85rem; color:#1e293b; }
+              .radar-reason { font-size:0.68rem; color:#64748b; margin-top:2px; }
+              .radar-score { font-size:1.1rem; font-weight:800; color:#10b981; float:right; margin-top:-28px; }
+              .radar-score small { font-size:0.6rem; color:#94a3b8; }
+              /* ── 마진율 색상 코딩 ── */
+              .margin-red { color:#ef4444 !important; font-weight:700; }
+              .margin-yellow { color:#f59e0b !important; font-weight:700; }
+              .margin-green { color:#10b981 !important; font-weight:700; }
+            </style>
+            <div id="sourcing-insight-hub">
+              <div class="insight-card insight-loading">
+                <div class="insight-header"><span class="insight-icon">🔄</span><span class="insight-label">인사이트 로딩 중...</span></div>
+                <div class="insight-forecast">SourcingIntel 데이터 수집을 기다리고 있습니다</div>
+              </div>
+            </div>
+
+            <!-- 📦 Integrated Search -->
+            <div class="panel">
+                <div class="panel-header">🔎 통합 소싱 분석 엔진</div>
+                <div class="panel-body">
+                    <div class="search-box-v5">
+                        <input type="text" id="v5-search-input" placeholder="키워드 혹은 상품명 입력...">
+                        <button class="primary-btn" onclick="runIntegratedV5Search()">분석 시작</button>
+                    </div>
+
+                    <!-- Keyword Expansion Chips -->
+                    <div id="v5-keyword-expansion" style="display:none; margin-top:12px; flex-wrap:wrap; gap:8px;">
+                        <span class="label" style="width:100%; margin-bottom:4px;">💡 연관 키워드 확장 (AI 추천)</span>
+                        <div id="v5-keyword-chips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                    </div>
+
+                    <div id="v5-analysis-result" style="display:none; margin-top:16px;">
+                        <!-- ★ V5.5 슬림 통계 리본 -->
+                        <div class="ag-stats-ribbon" id="ag-stats-ribbon" style="display:none; gap:16px; margin:0 0 16px; padding:12px 20px; background:rgba(255,255,255,0.4); backdrop-filter:blur(12px); border-radius:12px; border:1px solid rgba(255,255,255,0.6); align-items:center; box-shadow:0 4px 6px rgba(0,0,0,0.02); flex-wrap:wrap;">
+                            <div style="display:flex;align-items:center;gap:8px;border-right:1px solid rgba(0,0,0,0.1);padding-right:16px;">
+                                <span id="ag-ribbon-score" style="font-size:1.5rem;font-weight:800;color:#10b981;">--</span>
+                                <span style="font-size:0.7rem;color:#64748b;font-weight:600;line-height:1.1;">AI<br>SCORE</span>
+                            </div>
+                            <div style="flex:1;display:flex;justify-content:space-between;gap:12px;font-size:0.8rem;flex-wrap:wrap;">
+                                <div><span style="color:#64748b;font-size:0.65rem;">시장 강도</span> <strong id="ag-ribbon-market" style="color:#1e293b;margin-left:3px;">--</strong></div>
+                                <div><span style="color:#64748b;font-size:0.65rem;">성장</span> <strong id="ag-ribbon-growth" style="color:#3b82f6;margin-left:3px;">--</strong></div>
+                                <div><span style="color:#64748b;font-size:0.65rem;">도매 최저</span> <strong id="ag-ribbon-wholesale" style="color:#f59e0b;margin-left:3px;">--</strong></div>
+                                <div><span style="color:#64748b;font-size:0.65rem;">예상 마진</span> <strong id="ag-ribbon-margin" style="color:#10b981;margin-left:3px;">--</strong></div>
+                                <div><span style="color:#64748b;font-size:0.65rem;">AI 판별</span> <strong id="ag-ribbon-rec" style="margin-left:3px;">--</strong></div>
+                            </div>
+                        </div>
+                        <!-- 기존 호환용 hidden -->
+                        <div style="display:none;">
+                            <span id="v5-result-score"></span><span id="v5-result-title"></span>
+                            <p id="v5-result-comment"></p><div id="v5-result-tags"></div>
+                            <span id="v5-metric-market"></span><span id="v5-metric-growth"></span>
+                            <span id="v5-metric-social"></span><span id="v5-metric-roi"></span>
+                        </div>
+
+                        <!-- ★ V5.5 HTS형 고밀도 스크리너 (메인 뷰) -->
+                        <div class="ag-screener-container" id="ag-screener-section" style="display:none; background:rgba(255,255,255,0.3); border-radius:16px; border:1px solid rgba(255,255,255,0.5); overflow:hidden;">
+                            <div class="ag-screener-header" style="display:grid; grid-template-columns:50px 2.5fr 1fr 1fr 1fr 80px; padding:10px 14px; font-size:0.7rem; font-weight:700; color:#64748b; border-bottom:2px solid rgba(0,0,0,0.05); background:rgba(255,255,255,0.5);">
+                                <div>IMG</div><div>상품명</div><div style="text-align:center;">시장가</div><div style="text-align:center;">도매가 / 마진</div><div style="text-align:center;">AI 판별</div><div style="text-align:center;">액션</div>
+                            </div>
+                            <div class="ag-screener-body" id="ag-screener-body">
+                                <!-- Rows injected by renderHybridScreener() -->
+                            </div>
+                            <div class="ag-summary-bar" id="ag-summary-bar" style="display:flex; justify-content:space-around; padding:8px 16px; font-size:0.75rem; background:rgba(255,255,255,0.4); border-top:1px solid rgba(0,0,0,0.05);">
+                                <span>총 <span class="highlight" id="ag-total-count" style="font-weight:800;color:var(--accent);">0</span>건</span>
+                                <span>🟢 위탁추천 <span class="highlight" id="ag-dropship-count" style="font-weight:800;color:#10b981;">0</span></span>
+                                <span>🔥 사입추천 <span class="highlight" id="ag-import-count" style="font-weight:800;color:#f59e0b;">0</span></span>
+                                <span>❌ 보류 <span class="highlight" id="ag-hold-count" style="font-weight:800;color:#ef4444;">0</span></span>
+                            </div>
+                        </div>
+
+                        <div class="v5-action-area">
+                            <button class="action-btn secondary" onclick="findV5Suppliers()">📦 1688 공급처 매칭</button>
+                            <button class="action-btn primary" onclick="sendToSimulator()">🚀 시뮬레이터로 전환</button>
+                        </div>
+
+                        <!-- ===== V5.5 묶음 상품 마진 시뮬레이터 ===== -->
+                        <div class="panel" style="margin-top:16px;">
+                          <div class="panel-header" style="font-size:14px;">📦 묶음 상품 마진 시뮬레이터</div>
+                          <div class="panel-body">
+                            <p style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">
+                              여러 상품을 세트로 묶어 판매할 때 묶음 마진을 시뮬레이션합니다.
+                            </p>
+                            <div style="display:grid;grid-template-columns:2fr 1fr 0.5fr auto;gap:6px;align-items:end;margin-bottom:8px;">
+                              <div class="form-group" style="margin:0;">
+                                <label style="font-size:9px;">상품명</label>
+                                <input id="bundle-item-name" type="text" placeholder="상품명" style="font-size:11px;">
+                              </div>
+                              <div class="form-group" style="margin:0;">
+                                <label style="font-size:9px;">원가 (₩)</label>
+                                <input id="bundle-item-cost" type="number" placeholder="0" style="font-size:11px;">
+                              </div>
+                              <div class="form-group" style="margin:0;">
+                                <label style="font-size:9px;">수량</label>
+                                <input id="bundle-item-qty" type="number" value="1" min="1" style="font-size:11px;">
+                              </div>
+                              <button class="primary-btn" onclick="addBundleItem()" style="font-size:11px;padding:8px 12px;">+ 추가</button>
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+                              <div class="form-group" style="margin:0;">
+                                <label style="font-size:9px;">묶음 판매가 (₩)</label>
+                                <input id="bundle-sell-price" type="number" placeholder="0" oninput="renderBundleSim()" style="font-size:11px;">
+                              </div>
+                              <div class="form-group" style="margin:0;">
+                                <label style="font-size:9px;">배송비 (₩)</label>
+                                <input id="bundle-shipping" type="number" value="3000" oninput="renderBundleSim()" style="font-size:11px;">
+                              </div>
+                            </div>
+                            <div id="bundle-sim-result" style="font-size:12px;">
+                              <div style="text-align:center;color:var(--text-muted);font-size:11px;padding:10px;">상품을 추가하여 묶음 마진을 시뮬레이션하세요.</div>
+                            </div>
+                          </div>
+                        </div>
+    </div>
+</div> <!-- /.panel-body (analysis) -->
+</div> <!-- /.panel -->
+</div> <!-- /.calc-center-pane -->
+</div> <!-- /.calc-container -->
+<!-- ★ V-Core 챗봇 위젯 셸 (display:none) -->
+<div id="vcore-chat-widget" style="display:none;position:fixed;bottom:80px;right:20px;width:360px;max-height:480px;background:rgba(255,255,255,0.95);backdrop-filter:blur(16px);border-radius:20px;border:1px solid rgba(255,255,255,0.6);box-shadow:0 20px 40px rgba(0,0,0,0.15);z-index:9000;overflow:hidden;">
+  <div style="padding:16px;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;font-weight:700;font-size:14px;">🤖 V-Core Assistant</div>
+  <div id="vcore-chat-body" style="padding:16px;min-height:200px;"><p style="color:#94a3b8;font-size:12px;">에이전트 미연결</p></div>
+</div>
+</div> <!-- /#page-sourcing -->
+
+<div class="page" id="page-inventory">
+    <div class="calc-container v5-simulator-layout">
+        <!-- [LEFT] Online Consignment Column -->
+        <div class="calc-left-pane">
+            <div class="panel">
+                <div class="panel-header">🖥️ 온라인 위탁 시뮬레이터</div>
+                <div class="panel-body" id="page-calc-v5">
+                    <div class="calc-sub-tabs">
+                        <button class="preset-btn active" id="calc-tab-direct" onclick="showCalcSubTab('direct')" type="button">✏️ 직접 입력</button>
+                        <button class="preset-btn" id="calc-tab-search" onclick="showCalcSubTab('search')" type="button">🔍 도매 검색</button>
+                    </div>
+
+                    <div id="calc-section-direct">
+                        <div class="form-group">
+                            <label>상품명 (마켓 등록용)</label>
+                            <input type="text" id="productName" placeholder="상품명을 입력하세요">
+                        </div>
+
+                        <!-- 📊 Market Intelligence (Passed from Step 1) -->
+                        <div class="input-row" style="margin-bottom:16px; background:var(--surface3); padding:10px; border-radius:10px;">
+                            <div class="form-group">
+                                <label style="color:var(--accent);">시중 최저가</label>
+                                <input type="text" id="v5-market-min" readonly placeholder="--" style="background:transparent; border:none; color:var(--accent); font-weight:800;">
+                            </div>
+                            <div class="form-group">
+                                <label style="color:var(--accent2);">시중 평균가</label>
+                                <input type="text" id="v5-market-avg" readonly placeholder="--" style="background:transparent; border:none; color:var(--accent2); font-weight:800;">
+                            </div>
+                            <div class="form-group">
+                                <label style="color:var(--warn);">AI SCORE</label>
+                                <div id="v5-score-badge" class="opp-score-mini" style="width:30px; height:30px; font-size:12px; border-width:2px; margin-top:4px;">--</div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>도매 원가 (원)</label>
+                            <input type="number" id="costPrice" placeholder="0" oninput="recalcMargin()">
+                        </div>
+
+                        <div class="input-row">
+                            <div class="form-group">
+                                <label>도매 배송비</label>
+                                <input type="number" id="supplyShipping" value="3000" oninput="recalcMargin()">
+                            </div>
+                            <div class="form-group">
+                                <label>마켓 배송비</label>
+                                <input type="number" id="marketShipping" value="3000" oninput="recalcMargin()">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>판매 마켓 및 수수료 (%)</label>
+                            <div style="display:flex; gap:8px;">
+                                <select id="calc-market-select" onchange="onCalcMarketChange()" style="flex:1">
+                                    <option value="smartstore">네이버 스마트스토어</option>
+                                    <option value="coupang">쿠팡</option>
+                                    <option value="11st">11번가</option>
+                                    <option value="gmarket">G마켓</option>
+                                </select>
+                                <input type="number" id="fee-single" value="6.6" step="0.1" style="width:80px" oninput="recalcMargin()">
+                            </div>
+                        </div>
+
+                        <div class="panel" style="background:var(--surface2); margin-top:16px;">
+                            <div class="panel-header">🎯 희망 마진율 설정</div>
+                            <div class="panel-body">
+                                <input type="range" id="targetMarginSlider" min="1" max="80" value="15" oninput="syncMarginFromSlider()">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                                    <input type="number" id="targetMargin" value="15" style="width:70px" oninput="syncMarginFromInput()">
+                                    <div class="margin-presets">
+                                        <button class="preset-btn" onclick="setMargin(10)">10%</button>
+                                        <button class="preset-btn" onclick="setMargin(20)">20%</button>
+                                        <button class="preset-btn" onclick="setMargin(30)">30%</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Wholesale Search Section (Hidden by default) -->
+                    <div id="calc-section-search" style="display:none">
+                        <div class="form-group">
+                            <label>통합 도매 검색</label>
+                            <div style="display:flex; gap:8px;">
+                                <input type="text" id="unified-wholesale-input" placeholder="검색어 입력" style="flex:1">
+                                <button class="action-btn" onclick="runUnifiedSearch()">검색</button>
+                            </div>
+                        </div>
+                        <div id="wholesale-results" class="v5-wholesale-grid"></div>
+                    </div>
+
+                    <div id="results-area-v5" style="margin-top:20px;">
+                        <div id="compare-all-wrap">
+                            <div class="panel-header" style="background:var(--surface3); font-size:13px;">📊 마켓별 마진 통합 비교</div>
+                            <div id="inverse-result" class="inverse-result">
+                                <div id="inverse-grid"><!-- Injected by JS --></div>
+                            </div>
+                        </div>
+
+                        <div class="panel" style="margin-top:16px; background:var(--surface2);">
+                            <div class="panel-header" style="font-size:13px;">🎯 목표 수익 및 손익분기점 분석</div>
+                            <div class="panel-body">
+                                <div class="form-group">
+                                    <label>월 목표 순이익 (원)</label>
+                                    <input type="text" id="monthly-target" placeholder="0" oninput="calcBreakEven()">
+                                </div>
+                                <div class="be-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+                                    <div class="be-item"><label>필요 판매량</label><div id="be-qty" class="be-val">—</div></div>
+                                    <div class="be-item"><label>필요 매출액</label><div id="be-sales" class="be-val">—</div></div>
+                                    <div class="be-item"><label>예상 매입액</label><div id="be-cost" class="be-val">—</div></div>
+                                    <div class="be-item"><label>일 평균 판매</label><div id="be-daily" class="be-val">—</div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 위탁↔사입 전환 시뮬레이션 -->
+                        <div class="panel" style="margin-top:16px; background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 5%, transparent), color-mix(in srgb, var(--accent2, #f59e0b) 5%, transparent)); border:1px solid color-mix(in srgb, var(--accent) 20%, transparent);">
+                            <div class="panel-header" style="font-size:13px;">🔄 위탁 ↔ 사입 전환 시뮬레이션</div>
+                            <div class="panel-body">
+                                <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">
+                                    같은 상품을 위탁(중개)으로 판매할 때와 사입(직접매입)으로 판매할 때의 수익 구조를 비교합니다.
+                                </p>
+                                <div class="input-row" style="margin-bottom:12px;">
+                                    <div class="form-group">
+                                        <label>사입 시 MOQ (최소주문수량)</label>
+                                        <input type="number" id="cvd-moq" value="10" min="1" style="width:100%;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>사입 시 할인율 (%)</label>
+                                        <input type="number" id="cvd-discount" value="15" min="0" max="50" style="width:100%;">
+                                    </div>
+                                </div>
+                                <button class="calc-btn" onclick="compareConsignmentVsDirect()" style="width:100%; margin-bottom:12px;">🔄 비교 분석 실행</button>
+                                <div id="cvd-result" style="display:none;">
+                                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                                        <div style="padding:14px; background:var(--surface2); border-radius:10px; text-align:center;">
+                                            <div style="font-size:11px; color:var(--text-muted); font-weight:700;">🏷️ 위탁 (단건)</div>
+                                            <div id="cvd-consign-profit" style="font-size:20px; font-weight:900; color:var(--accent); margin:4px 0;">—</div>
+                                            <div id="cvd-consign-detail" style="font-size:10px; color:var(--text-muted);"></div>
+                                        </div>
+                                        <div style="padding:14px; background:var(--surface2); border-radius:10px; text-align:center;">
+                                            <div style="font-size:11px; color:var(--text-muted); font-weight:700;">📦 사입 (단건)</div>
+                                            <div id="cvd-direct-profit" style="font-size:20px; font-weight:900; color:var(--accent2, #f59e0b); margin:4px 0;">—</div>
+                                            <div id="cvd-direct-detail" style="font-size:10px; color:var(--text-muted);"></div>
+                                        </div>
+                                    </div>
+                                    <div id="cvd-verdict" style="padding:12px; background:var(--surface); border-radius:8px; font-size:12px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- [RIGHT] Direct/Overseas Sourcing Column -->
+        <div class="calc-right-pane">
+            <div class="panel">
+                <div class="panel-header" style="display:flex; justify-content:space-between;">
+                    <span>✈️ 해외/직접 사입 시뮬레이터</span>
+                    <div class="sourcing-mode-tabs">
+                        <button class="mini-tab active" onclick="switchSimulatorMode('global')">해외</button>
+                        <button class="mini-tab" onclick="switchSimulatorMode('field')">현장</button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <!-- Global Landed Cost Section -->
+                    <div id="v5-global-section">
+                        <!-- ★ 수입규제 경고 배너 -->
+                        <div id="import-regulation-banner" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:10px;background:linear-gradient(135deg,rgba(239,68,68,0.08),rgba(239,68,68,0.02));border:1px solid rgba(239,68,68,0.2);font-size:11px;">
+                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                                <span style="font-size:14px;">⚠️</span>
+                                <span style="font-weight:700;color:#ef4444;">수입 규제 / 세관장확인 대상</span>
+                            </div>
+                            <div id="import-regulation-text" style="color:#64748b;line-height:1.5;"></div>
+                        </div>
+
+                        <div class="global-calc-box">
+                            <!-- ★ 관세청 과세환율 정보 패널 -->
+                            <div id="customs-exchange-panel" style="margin-bottom:12px;padding:10px 14px;border-radius:10px;background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(139,92,246,0.04));border:1px solid rgba(59,130,246,0.12);">
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                                    <span style="font-size:11px;font-weight:700;color:#3b82f6;">🏛️ 관세청 과세 기준 환율</span>
+                                    <span id="customs-rate-date" style="font-size:9px;color:#94a3b8;">로딩중...</span>
+                                </div>
+                                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+                                    <div style="text-align:center;">
+                                        <div style="font-size:9px;color:#94a3b8;">USD</div>
+                                        <div id="customs-usd" style="font-size:13px;font-weight:800;color:#1e293b;">-</div>
+                                    </div>
+                                    <div style="text-align:center;">
+                                        <div style="font-size:9px;color:#94a3b8;">CNY</div>
+                                        <div id="customs-cny" style="font-size:13px;font-weight:800;color:#1e293b;">-</div>
+                                    </div>
+                                    <div style="text-align:center;">
+                                        <div style="font-size:9px;color:#94a3b8;">JPY</div>
+                                        <div id="customs-jpy" style="font-size:13px;font-weight:800;color:#1e293b;">-</div>
+                                    </div>
+                                    <div style="text-align:center;">
+                                        <div style="font-size:9px;color:#94a3b8;">EUR</div>
+                                        <div id="customs-eur" style="font-size:13px;font-weight:800;color:#1e293b;">-</div>
+                                    </div>
+                                </div>
+                                <div style="font-size:9px;color:#94a3b8;margin-top:6px;text-align:center;">※ 과세 환율은 시중 환율과 다르며, 관세 부과 기준입니다</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>중국 원문 가격 (¥)</label>
+                                <input type="number" id="global-cny-price" placeholder="0" oninput="updateV5LandedCost()">
+                            </div>
+                            <div class="input-row">
+                                <div class="form-group">
+                                    <label>환율 (1¥)</label>
+                                    <input type="number" id="global-exchange-rate" value="195" oninput="updateV5LandedCost()">
+                                </div>
+                                <div class="form-group">
+                                    <label>HS-CODE (10자리)</label>
+                                    <input type="text" id="global-hs-code" placeholder="6109.10-0000" maxlength="14" oninput="lookupHSCode()">
+                                </div>
+                            </div>
+                            <div style="margin-bottom:8px;">
+                                <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px;">주요 품목 프리셋:</div>
+                                <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                                    <button class="preset-btn" type="button" onclick="setHSCode('6109.10','면 티셔츠',13)" style="font-size:10px; padding:3px 6px;">👕 면티(13%)</button>
+                                    <button class="preset-btn" type="button" onclick="setHSCode('6204.62','면바지',13)" style="font-size:10px; padding:3px 6px;">👖 바지(13%)</button>
+                                    <button class="preset-btn" type="button" onclick="setHSCode('6402.99','운동화',13)" style="font-size:10px; padding:3px 6px;">👟 신발(13%)</button>
+                                    <button class="preset-btn" type="button" onclick="setHSCode('8471.30','노트북',0)" style="font-size:10px; padding:3px 6px;">💻 노트북(0%)</button>
+                                    <button class="preset-btn" type="button" onclick="setHSCode('8517.12','스마트폰',0)" style="font-size:10px; padding:3px 6px;">📱 폰(0%)</button>
+                                    <button class="preset-btn" type="button" onclick="setHSCode('3304.99','화장품',6.5)" style="font-size:10px; padding:3px 6px;">💄 화장품(6.5%)</button>
+                                    <button class="preset-btn" type="button" onclick="setHSCode('9503.00','장난감',8)" style="font-size:10px; padding:3px 6px;">🧸 장난감(8%)</button>
+                                </div>
+                            </div>
+                            <!-- ★ 세관장확인 결과 표시 -->
+                            <div id="customs-check-result" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:8px;font-size:11px;"></div>
+                            <div class="input-row">
+                                <div class="form-group">
+                                    <label>관세율 (%)</label>
+                                    <input type="number" id="global-tariff" value="8" oninput="updateV5LandedCost()">
+                                </div>
+                                <div class="form-group" id="hs-code-info" style="font-size:11px; color:var(--text-muted); display:flex; align-items:center;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>물류비 / 배대지 (원)</label>
+                                <input type="number" id="global-shipping" value="0" oninput="updateV5LandedCost()">
+                            </div>
+
+                            <div class="landed-cost-result">
+                                <label>예상 랜딩 원가 (Landed Cost)</label>
+                                <div id="global-landing-cost" class="cost-value">0 원</div>
+
+                                <div id="v5-cost-breakdown" style="display:none; margin:12px 0; padding:12px; background:rgba(255,255,255,0.03); border-radius:8px; font-size:12px; text-align:left;">
+                                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>상품가(원화)</span> <span id="v5-break-base">0 원</span></div>
+                                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>관세액</span> <span id="v5-break-duty">0 원</span></div>
+                                    <div style="display:flex; justify-content:space-between;"><span>부가세액</span> <span id="v5-break-vat">0 원</span></div>
+                                </div>
+
+                                <button class="action-btn primary" onclick="applyGlobalCost()">원가로 적용하기</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Field Sourcing Section (Hidden by default) -->
+                    <div id="v5-field-section" style="display:none">
+                        <div class="form-group">
+                            <label>현장 매입 단가</label>
+                            <input type="number" id="field-unit-price" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>최소 수량 (MOQ)</label>
+                            <input type="number" id="field-min-qty" value="1">
+                        </div>
+                        <button class="action-btn" onclick="saveDirectSourcingNote('simulator')">📝 현장 기록 저장</button>
+                    </div>
+
+                    <hr style="margin:20px 0; border:none; border-top:1px solid var(--border);">
+
+                    <div class="form-group">
+                        <label>비고 및 메모</label>
+                        <textarea id="simulator-memo" placeholder="거래처 연락처, 특이사항 등..."></textarea>
+                    </div>
+
+                    <button class="save-btn" onclick="saveProduct()" style="width:100%; height:50px; margin-top:10px;">🚀 최종 상품 확정 및 저장</button>
+                </div> <!-- /.panel-body -->
+            </div> <!-- /.panel -->
+
+            <!-- [NEW] 공급업체 등록 모달 (V5용 캡슐화 제1원칙 준수) -->
+            <div class="panel" id="vendor-modal" style="display:none; margin-top:16px;">
+                <div class="panel-header" style="background:var(--surface3);">🏢 공급업체 현장 등록</div>
+                <div class="panel-body">
+                    <input type="hidden" id="vendor-id">
+                    <div class="form-group">
+                        <label>상호명 (필수)</label>
+                        <input type="text" id="vendor-name" placeholder="예: 동대문 오렌지">
+                    </div>
+                    <div class="form-group">
+                        <label>대표자 이름</label>
+                        <input type="text" id="vendor-rep" placeholder="예: 홍길동">
+                    </div>
+                    <div class="form-group">
+                        <label>연락처</label>
+                        <input type="text" id="vendor-phone" placeholder="예: 010-1234-5678">
+                    </div>
+                    <div class="form-group">
+                        <label>주소</label>
+                        <input type="text" id="vendor-address" placeholder="예: 서울시 중구 마장로 11">
+                    </div>
+                    <div class="form-group">
+                        <label>중요도 등급</label>
+                        <select id="vendor-grade" class="filter-select" style="width:100%;">
+                            <option value="A">A등급 (주요 거래처 / 단가/소통 우수)</option>
+                            <option value="B" selected>B등급 (일반 거래처)</option>
+                            <option value="C">C등급 (단발성, 테스트, 신규 거래)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>메모 사항 (영업시간, 택배/사입삼촌 방식 등)</label>
+                        <textarea id="vendor-memo" placeholder="예: 야간 12시 오픈, 신상마켓 등"></textarea>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <button class="action-btn" onclick="saveVendor()" style="flex:1; height:40px; background:var(--accent); color:#000; font-weight:bold;">
+                            💾 업체 저장하기
+                        </button>
+                        <button class="action-btn danger" onclick="closeVendorForm()" style="flex:1; height:40px;">
+                            취소
+                        </button>
+                    </div>
+                </div>
+            </div> <!-- /#vendor-modal -->
+
+        </div> <!-- /.calc-right-pane -->
+    </div> <!-- /.calc-container -->
+</div> <!-- /#page-inventory -->
+
+<style>
+.v5-simulator-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+}
+@media (max-width: 1024px) {
+    .v5-simulator-layout {
+        grid-template-columns: 1fr;
+    }
+}
+.cost-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--accent);
+    margin: 10px 0;
+}
+.mini-tab {
+    padding: 4px 12px;
+    font-size: 11px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+.mini-tab.active {
+    background: var(--accent);
+    color: black;
+    border-color: var(--accent);
+}
+.landed-cost-result {
+    background: var(--surface2);
+    padding: 16px;
+    border-radius: 12px;
+    margin-top: 16px;
+    border: 1px solid var(--border);
+    text-align: center;
+}
+
+/* ===== PIN Modal Overlay (Security Lock) ===== */
+.v5-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100000;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.v5-modal-overlay .v5-modal-content {
+    background: var(--surface1);
+    border-radius: 16px;
+    padding: 40px 30px;
+    max-width: 360px;
+    width: 90%;
+    text-align: center;
+    border: 2px solid var(--accent);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    animation: pinModalIn 0.3s ease-out;
+}
+@keyframes pinModalIn {
+    from { transform: scale(0.9) translateY(-20px); opacity: 0; }
+    to   { transform: scale(1)   translateY(0);     opacity: 1; }
+}
+.v5-modal-overlay #pin-digit {
+    width: 160px;
+    height: 56px;
+    font-size: 32px;
+    text-align: center;
+    letter-spacing: 12px;
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+    background: var(--surface2);
+    color: var(--accent);
+    outline: none;
+    transition: border-color 0.2s;
+}
+.v5-modal-overlay #pin-digit:focus {
+    border-color: var(--success);
+    box-shadow: 0 0 0 3px rgba(0, 200, 100, 0.3);
+}
+</style>
+
+        <div class="page" id="page-ledger"><div class="calc-container"><div class="calc-left-pane" style="max-width:100%; flex:1;">
+<div class="panel">
+<div class="toolbar">
+<div class="toolbar-filters">
+<input class="search-input" id="search-input" oninput="renderList()" placeholder="🔍 상품명 검색..." type="text"/>
+<select class="filter-select" id="margin-filter" onchange="renderList()">
+<option value="">마진 전체</option>
+<option value="30">30% 이상</option>
+<option value="20">20% 이상</option>
+<option value="10">10% 이상</option>
+</select>
+<select class="filter-select" id="market-filter" onchange="renderList()">
+<option value="">마켓 전체</option>
+<option value="스마트스토어">스마트</option>
+<option value="쿠팡">쿠팡</option>
+<option value="11번가">11번가</option>
+<option value="G마켓">G마켓</option>
+<option value="옥션">옥션</option>
+<option value="위메프">위메프</option>
+<option value="티몬">티몬</option>
+<option value="카카오쇼핑">카카오</option>
+</select>
+<select class="filter-select" id="category-filter" onchange="renderList()">
+<option value="">카테고리 전체</option>
+<option value="의류">의류</option>
+<option value="식품">식품</option>
+<option value="생활용품">생활용품</option>
+<option value="전자기기">전자기기</option>
+<option value="화장품">화장품</option>
+<option value="기타">기타</option>
+</select>
+<select class="filter-select" id="competition-filter" onchange="renderList()">
+<option value="">경쟁강도 전체</option>
+<option value="낮음">🟢 낮음</option>
+<option value="보통">🟡 보통</option>
+<option value="높음">🔴 높음</option>
+</select>
+<select class="filter-select" id="sort-list" onchange="renderList()">
+<option value="margin-desc">정렬: 마진율 높은순</option>
+<option value="margin-asc">마진율 낮은순</option>
+<option value="date-desc">저장일 최신순</option>
+</select>
+<label class="filter-toggle-label"><input id="filter-margin20" onchange="renderList()" type="checkbox"/> 마진 20%↑만 보기</label>
+</div>
+<div class="toolbar-actions">
+<button class="action-btn" onclick="loadProducts()">🔄 새로고침</button>
+<button class="action-btn" onclick="exportCSV()">📥 CSV</button>
+<button class="action-btn danger" onclick="clearAll()">전체삭제</button>
+</div>
+</div>
+<div id="list-area">
+<div class="empty-state" id="empty-state">
+<div class="empty-icon">📦</div>
+<div>저장된 상품이 없습니다</div>
+<div style="font-size:12px;margin-top:4px;opacity:0.6">계산 탭에서 저장해보세요</div>
+</div>
+<div class="product-cards" id="product-cards" style="display:none"></div>
+</div>
+<div class="calc-right-pane" style="max-width:100%; flex:1;">
+<div class="panel" style="margin-bottom:16px">
+<div class="panel-header">🔗 <span>마켓 연동 현황</span></div>
+<div class="panel-body">
+<div id="market-connection-list">
+<div class="mp-row" style="margin-bottom:10px"><span>스마트스토어</span><span class="mp-val" id="conn-smartstore">○ 미연결</span><button class="action-btn" onclick="showTab('setup')" type="button">연결하기</button></div>
+<div class="mp-row" style="margin-bottom:10px"><span>쿠팡</span><span class="mp-val" id="conn-coupang">○ 미연결</span><button class="action-btn" onclick="showTab('setup')" type="button">연결하기</button></div>
+<div class="mp-row" style="margin-bottom:10px"><span>11번가</span><span class="mp-val" id="conn-11st">○ 미연결</span><button class="action-btn" onclick="showTab('setup')" type="button">연결하기</button></div>
+</div>
+<div style="font-size:12px;color:var(--text-muted);margin-top:12px">연결된 마켓이 없습니다. 설정 탭 → 마켓 API 키에서 입력 후 연결 시 주문이 자동으로 수집됩니다.</div>
+</div>
+</div>
+<div class="stats-grid" style="margin-bottom:16px">
+<div class="stat-card"><div class="stat-val" id="sales-month-revenue">0</div><div class="stat-label">이번달 매출</div></div>
+<div class="stat-card"><div class="stat-val" id="sales-month-profit">0</div><div class="stat-label">이번달 순이익</div></div>
+</div>
+<div class="panel">
+<div class="panel-header">🛒 <span>판매 중인 상품 (<span id="sales-selling-count">0</span>개)</span></div>
+<div class="panel-body" style="font-size:12px;color:var(--text-muted);margin-bottom:10px">소싱목록에서 "판매 시작"을 누른 상품이 여기에 표시됩니다.</div>
+<div id="sales-list-area">
+<div class="empty-state" id="sales-empty">
+<div class="empty-icon">🛒</div>
+<div>판매 결정한 상품이 없습니다</div>
+<div style="font-size:12px;margin-top:4px;opacity:0.6">소싱목록에서 "판매 시작"을 누르세요</div>
+</div>
+<div class="product-cards" id="sales-cards" style="display:none"></div>
+</div>
+<div class="panel-body" style="border-top:1px solid var(--border);padding-top:12px">
+<button class="action-btn" onclick="openSalesRecordModal()" type="button">+ 판매 기록 수동 추가</button>
+</div>
+</div>
+<div class="panel" style="margin-top:16px">
+<div class="panel-header">🔗 <span>마켓 연동 (준비 중)</span></div>
+<div class="panel-body">
+<div style="font-size:13px;color:var(--text-muted);margin-bottom:10px">연동 시 주문 자동 수집</div>
+<label style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><input disabled="" type="checkbox"/> 스마트스토어 API 연결</label>
+<label style="display:flex;align-items:center;gap:8px"><input disabled="" type="checkbox"/> 쿠팡 Wing API 연결</label>
+</div>
+</div>
+<!-- FIFO 재고 단가 분석 -->
+<div class="panel" style="margin-top:16px;">
+<div class="panel-header">📊 <span>FIFO 재고 단가 분석</span></div>
+<div class="panel-body">
+<p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">선입선출(FIFO) 방식으로 매입→판매 원가를 자동 계산합니다.</p>
+<div id="fifo-summary" style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px;">
+    <div style="padding:10px; background:var(--surface2); border-radius:8px; text-align:center;">
+        <div style="font-size:10px; color:var(--text-muted); font-weight:700;">총 재고 수량</div>
+        <div id="fifo-total-qty" style="font-size:18px; font-weight:900; color:var(--accent);">0개</div>
+    </div>
+    <div style="padding:10px; background:var(--surface2); border-radius:8px; text-align:center;">
+        <div style="font-size:10px; color:var(--text-muted); font-weight:700;">FIFO 평균 단가</div>
+        <div id="fifo-avg-cost" style="font-size:18px; font-weight:900; color:var(--accent2,#f59e0b);">0원</div>
+    </div>
+    <div style="padding:10px; background:var(--surface2); border-radius:8px; text-align:center;">
+        <div style="font-size:10px; color:var(--text-muted); font-weight:700;">재고 자산 가치</div>
+        <div id="fifo-total-value" style="font-size:18px; font-weight:900; color:var(--text);">0원</div>
+    </div>
+</div>
+<div id="fifo-detail-list" style="max-height:200px; overflow-y:auto; font-size:11px;"></div>
+<button class="action-btn" onclick="renderFIFOAnalysis()" style="margin-top:10px;">🔄 재계산</button>
+</div>
+</div>
+</div>
+</div>
+</div> <!-- /#page-ledger calc-container -->
+</div> <!-- /#page-ledger calc-left-pane -->
+</div> <!-- /#page-ledger -->
+        <div class="page" id="page-finance">
+  <!-- 핵심 금융 지표 요약 (Phase 5) -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px;">
+    <div class="panel" style="padding: 16px; text-align: center; background: color-mix(in srgb, var(--accent) 5%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);">
+      <div style="font-size: 12px; color: var(--text-muted); font-weight: 700;">평균 ROI</div>
+      <div id="finance-roi" style="font-size: 24px; font-weight: 900; color: var(--accent); margin: 4px 0;">0%</div>
+      <div id="finance-roi-delta" style="font-size: 10px; color: var(--text-muted);">데이터 수집 중…</div>
+    </div>
+    <div class="panel" style="padding: 16px; text-align: center; background: color-mix(in srgb, var(--accent2) 5%, transparent); border: 1px solid color-mix(in srgb, var(--accent2) 20%, transparent);">
+      <div style="font-size: 12px; color: var(--text-muted); font-weight: 700;">추정 현금 흐름</div>
+      <div id="finance-cashflow" style="font-size: 24px; font-weight: 900; color: var(--accent2); margin: 4px 0;">0원</div>
+      <div style="font-size: 10px; color: var(--text-muted);">정산 예정금 포함</div>
+    </div>
+    <div class="panel" style="padding: 16px; text-align: center;">
+      <div style="font-size: 12px; color: var(--text-muted); font-weight: 700;">광고 효율 (ROAS)</div>
+      <div id="finance-roas" style="font-size: 24px; font-weight: 900; color: var(--text); margin: 4px 0;">0%</div>
+      <div id="finance-roas-status" style="font-size: 10px; color: var(--text-muted);">광고 데이터 없음</div>
+    </div>
+  </div>
+
+  <!-- 메인 시각화 차트 (Phase 5) -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 20px;">
+    <div class="panel" style="padding: 20px;">
+      <div style="font-size: 14px; font-weight: 800; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+        <span>📈</span> 매출 및 순이익 트렌드
+      </div>
+      <div style="height: 250px; position: relative;">
+        <canvas id="chart-sales-trend"></canvas>
+      </div>
+    </div>
+    <div class="panel" style="padding: 20px;">
+      <div style="font-size: 14px; font-weight: 800; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+        <span>🥧</span> 마켓별 판매 비중
+      </div>
+      <div style="height: 250px; position: relative;">
+        <canvas id="chart-market-share"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="acc-vat-status-card" style="margin-bottom:16px">
+<div class="panel-header">📊 <span>사업자 현황 (간이과세자)</span></div>
+<div class="panel-body">
+<div class="mp-row" style="margin-bottom:8px"><span class="mp-label">올해 누적 매출</span><span class="mp-val" id="acc-annual-sales">0원</span></div>
+<div class="mp-row" style="margin-bottom:8px"><span class="mp-label">연 한도까지</span><span class="mp-val" id="acc-remaining">—</span></div>
+<div style="margin-bottom:8px">
+<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span>진행률</span><span id="acc-progress-pct">0%</span></div>
+<div style="height:8px;background:var(--surface2);border-radius:4px;overflow:hidden"><div id="acc-progress-bar" style="height:100%;width:0%;background:var(--accent);border-radius:4px;transition:width 0.5s"></div></div>
+</div>
+<div id="acc-status-msg" style="font-size:13px;margin:10px 0">—</div>
+<div style="font-size:11px;color:var(--text-muted);margin-top:10px;line-height:1.5">
+<div><strong>간이과세자 혜택:</strong> 부가세 = 매출×1.5%(소매업) · 연 2회 신고 · 세금계산서 발행 불가</div>
+<div style="margin-top:6px"><strong>일반과세자 전환 시:</strong> 부가세 10% (매출-매입) · 세금계산서 발행 의무 · 매입세액 공제 가능</div>
+</div>
+<div id="acc-vat-compare" style="margin-top:10px;font-size:12px;padding:8px;background:var(--surface);border-radius:8px;display:none"></div>
+</div>
+</div>
+<div class="stats-grid" style="margin-bottom:16px">
+<div class="stat-card"><div class="stat-val amount" id="acc-sales">0</div><div class="stat-label label">이번 달 매출</div></div>
+<div class="stat-card"><div class="stat-val amount" id="acc-purchase">0</div><div class="stat-label label">이번 달 매입</div></div>
+<div class="stat-card"><div class="stat-val amount" id="acc-profit">0</div><div class="stat-label label">순이익</div></div>
+<div class="stat-card"><div class="stat-val amount" id="acc-vat">0</div><div class="stat-label label">부가세 예상 (간이)</div></div>
+</div>
+<div class="panel" style="margin-bottom:16px">
+<div class="panel-header">💹 <span>손익 계산</span></div>
+<div class="panel-body">
+<div class="mp-row" style="margin-bottom:8px"><span class="mp-label">총 매출</span><span class="mp-val" id="acc-profit-sales">+ 0원</span></div>
+<div class="mp-row" style="margin-bottom:8px"><span class="mp-label">총 매입 (원가)</span><span class="mp-val" id="acc-profit-purchase">- 0원</span></div>
+<div class="mp-row" style="margin-bottom:8px"><span class="mp-label">플랫폼 수수료</span><span class="mp-val" id="acc-profit-fee">- 0원</span></div>
+<div class="mp-row" style="margin-bottom:8px"><span class="mp-label">배송비 합계</span><span class="mp-val" id="acc-profit-ship">- 0원</span></div>
+<div style="border-top:1px solid var(--border);margin:10px 0;padding-top:10px"><div class="mp-row"><span class="mp-label">영업이익</span><span class="mp-val" id="acc-profit-op">0원</span></div></div>
+<div class="mp-row" style="margin-bottom:8px"><span class="mp-label">부가세 예상</span><span class="mp-val" id="acc-profit-vat">- 0원</span></div>
+<div style="border-top:1px solid var(--border);margin:10px 0;padding-top:10px"><div class="mp-row"><span class="mp-label">세후 순이익</span><span class="mp-val" id="acc-profit-net" style="font-weight:700;color:var(--accent)">= 0원 🏆</span></div></div>
+<div class="mp-row" style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span class="mp-label">매출 대비 순이익률</span><span class="mp-val" id="acc-profit-pct">0.0%</span></div>
+</div>
+</div>
+<div style="margin-bottom:12px;font-size:12px;color:var(--text-muted)">
+    업종 (간이과세자 부가가치율): <select class="filter-select" id="acc-business-type" onchange="saveAccBusinessType(); loadAccountingList();">
+<option value="소매업">소매업 (15%)</option>
+<option value="음식업">음식업 (40%)</option>
+<option value="서비스업">서비스업 (30%)</option>
+</select>
+</div>
+
+<!-- ===== Tax Pivot Table ===== -->
+<div class="panel" style="margin-bottom:16px">
+<div class="panel-header">📊 <span>세금 피벗 분석</span></div>
+<div class="panel-body">
+  <!-- 반기 요약 -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+    <div style="padding:12px; background:var(--surface2); border-radius:10px;">
+      <div style="font-size:11px; color:var(--text-muted); font-weight:700;">1기 (1~6월) 부가세 예상</div>
+      <div id="tax-half1" style="font-size:20px; font-weight:900; color:var(--accent); margin-top:4px;">0원</div>
+    </div>
+    <div style="padding:12px; background:var(--surface2); border-radius:10px;">
+      <div style="font-size:11px; color:var(--text-muted); font-weight:700;">2기 (7~12월) 부가세 예상</div>
+      <div id="tax-half2" style="font-size:20px; font-weight:900; color:var(--accent2, #f59e0b); margin-top:4px;">0원</div>
+    </div>
+  </div>
+  <!-- 간이 vs 일반 비교 -->
+  <div id="tax-compare" style="padding:10px; background:var(--surface); border-radius:8px; font-size:12px; margin-bottom:16px;"></div>
+  <!-- 피벗 테이블 -->
+  <div style="overflow-x:auto;">
+    <table id="tax-pivot-table" style="width:100%; border-collapse:collapse; font-size:12px;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border);">
+          <th style="padding:8px; text-align:left; color:var(--text-muted);">월</th>
+          <th style="padding:8px; text-align:right; color:#22c55e;">매출</th>
+          <th style="padding:8px; text-align:right; color:#ef4444;">매입</th>
+          <th style="padding:8px; text-align:right; color:var(--text-muted);">세금계산서</th>
+          <th style="padding:8px; text-align:right; color:var(--text-muted);">카드</th>
+          <th style="padding:8px; text-align:right; color:var(--text-muted);">현금영수증</th>
+          <th style="padding:8px; text-align:right; color:var(--accent); font-weight:700;">간이 부가세</th>
+        </tr>
+      </thead>
+      <tbody id="tax-pivot-body"></tbody>
+      <tfoot id="tax-pivot-foot" style="border-top:2px solid var(--border); font-weight:700;"></tfoot>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- ===== Miller-Orr 현금 관리 ===== -->
+<div class="panel" style="margin-bottom:16px">
+<div class="panel-header">💰 <span>Miller-Orr 현금 관리 시뮬레이션</span></div>
+<div class="panel-body">
+  <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">
+    Baumol-Tobin 모형을 확장한 Miller-Orr 모형으로, 일일 현금흐름 변동을 기반으로 최적 현금 보유량을 계산합니다.
+    하한(L)~상한(H) 사이에서 목표잔고(Z)를 유지하면 현금관리 비용이 최소화됩니다.
+  </p>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px; margin-bottom:16px;">
+    <div class="form-group">
+      <label>거래비용 (F, 원)</label>
+      <input id="mo-fixed-cost" type="number" value="3000" min="0" style="width:100%;" onchange="calcMillerOrr()">
+    </div>
+    <div class="form-group">
+      <label>연 이자율 (r, %)</label>
+      <input id="mo-rate" type="number" value="3.5" min="0" step="0.1" style="width:100%;" onchange="calcMillerOrr()">
+    </div>
+    <div class="form-group">
+      <label>하한 (L, 원)</label>
+      <input id="mo-lower" type="number" value="100000" min="0" style="width:100%;" onchange="calcMillerOrr()">
+    </div>
+  </div>
+  <!-- 결과 카드 -->
+  <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:16px;">
+    <div style="padding:14px; background:var(--surface2); border-radius:10px; text-align:center;">
+      <div style="font-size:11px; color:var(--text-muted); font-weight:700;">하한 (L)</div>
+      <div id="mo-result-L" style="font-size:18px; font-weight:900; color:#ef4444; margin-top:4px;">—</div>
+    </div>
+    <div style="padding:14px; background:color-mix(in srgb, var(--accent) 8%, transparent); border:1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius:10px; text-align:center;">
+      <div style="font-size:11px; color:var(--text-muted); font-weight:700;">🎯 목표잔고 (Z)</div>
+      <div id="mo-result-Z" style="font-size:22px; font-weight:900; color:var(--accent); margin-top:4px;">—</div>
+    </div>
+    <div style="padding:14px; background:var(--surface2); border-radius:10px; text-align:center;">
+      <div style="font-size:11px; color:var(--text-muted); font-weight:700;">상한 (H)</div>
+      <div id="mo-result-H" style="font-size:18px; font-weight:900; color:#22c55e; margin-top:4px;">—</div>
+    </div>
+  </div>
+  <!-- 시뮬레이션 차트 -->
+  <div style="height:200px; position:relative;">
+    <canvas id="chart-miller-orr"></canvas>
+  </div>
+  <div id="mo-advice" style="margin-top:12px; padding:10px; background:var(--surface); border-radius:8px; font-size:12px; color:var(--text-muted);"></div>
+</div>
+</div>
+
+<!-- ===== 정산 딜레이 Cash-in 예정표 (V5.5) ===== -->
+<div class="panel" style="margin-bottom:16px">
+<div class="panel-header">📅 <span>마켓별 정산 Cash-in 예정표</span></div>
+<div class="panel-body">
+  <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">
+    각 마켓의 정산 주기(네이버 D+3, 쿠팡 D+60 등)를 반영하여 향후 30일간 내 통장에 실제 입금되는 날짜와 예상 금액을 보여줍니다.
+    <strong style="color:#ef4444;">⚠️ 빨간색 날짜</strong>는 사입 대금 지출 예정일과 겹쳐 현금 부족 위험이 있습니다.
+  </p>
+
+  <!-- 정산 주기 설정 -->
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:16px;">
+    <div class="form-group">
+      <label style="font-size:10px;">네이버 정산 (일)</label>
+      <input id="settle-naver" type="number" value="3" min="1" max="90" style="width:100%;" onchange="renderCashInTimeline()">
+    </div>
+    <div class="form-group">
+      <label style="font-size:10px;">쿠팡 정산 (일)</label>
+      <input id="settle-coupang" type="number" value="60" min="1" max="90" style="width:100%;" onchange="renderCashInTimeline()">
+    </div>
+    <div class="form-group">
+      <label style="font-size:10px;">11번가 정산 (일)</label>
+      <input id="settle-11st" type="number" value="14" min="1" max="90" style="width:100%;" onchange="renderCashInTimeline()">
+    </div>
+    <div class="form-group">
+      <label style="font-size:10px;">위메프/티몬 (일)</label>
+      <input id="settle-wemakeprice" type="number" value="30" min="1" max="90" style="width:100%;" onchange="renderCashInTimeline()">
+    </div>
+  </div>
+
+  <!-- Cash-in 예정 타임라인 -->
+  <div id="cashin-timeline" style="max-height:300px; overflow-y:auto; border:1px solid var(--border); border-radius:10px; padding:12px;">
+    <div style="text-align:center; color:var(--text-muted); padding:20px; font-size:12px;">
+      판매 데이터가 쌓이면 자동으로 Cash-in 예정표가 생성됩니다.
+    </div>
+  </div>
+
+  <!-- 요약 카드 -->
+  <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:12px;">
+    <div style="padding:10px; background:var(--surface2); border-radius:8px; text-align:center;">
+      <div style="font-size:10px; color:var(--text-muted); font-weight:700;">7일 내 입금 예정</div>
+      <div id="cashin-7d" style="font-size:16px; font-weight:900; color:#22c55e; margin-top:4px;">₩0</div>
+    </div>
+    <div style="padding:10px; background:var(--surface2); border-radius:8px; text-align:center;">
+      <div style="font-size:10px; color:var(--text-muted); font-weight:700;">30일 내 입금 예정</div>
+      <div id="cashin-30d" style="font-size:16px; font-weight:900; color:var(--accent); margin-top:4px;">₩0</div>
+    </div>
+    <div style="padding:10px; background:var(--surface2); border-radius:8px; text-align:center;">
+      <div style="font-size:10px; color:var(--text-muted); font-weight:700;">⚠️ 현금 부족 경고</div>
+      <div id="cashin-alert" style="font-size:14px; font-weight:900; color:#ef4444; margin-top:4px;">안전</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== V5.5 사입 대금 vs Cash-in 교차 비교 ===== -->
+<div class="panel" style="margin-top:16px;">
+<div class="panel-header" style="font-size:16px;">🚨 사입 대금 vs Cash-In 교차 비교</div>
+<div class="panel-body">
+  <p style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">
+    향후 30일간 사입 대금 지출 예정과 정산 입금을 교차 비교합니다. 순현금흐름이 음수이면 자금 조달이 필요합니다.
+  </p>
+  <div id="cashout-comparison" style="font-size:12px;">
+    <div style="text-align:center;color:var(--text-muted);padding:20px;">Miller-Orr 시뮬레이션 실행 후 자동 갱신됩니다.</div>
+  </div>
+</div>
+</div>
+
+<!-- ===== V5.5 원/위안 환율 변동 차트 ===== -->
+<div class="panel" style="margin-top:16px;">
+<div class="panel-header" style="font-size:16px;">💱 원/위안 환율 변동 (30일)</div>
+<div class="panel-body">
+  <div id="exchange-rate-summary" style="font-size:11px;margin-bottom:8px;color:var(--text-muted);">차트 로딩 중...</div>
+  <div style="height:160px;">
+    <canvas id="chart-exchange-rate"></canvas>
+  </div>
+</div>
+</div>
+
+<div class="panel">
+<div class="panel-header">📒 <span>거래 입력</span></div>
+<div class="panel-body">
+<div class="input-row">
+<div class="form-group"><label>날짜</label><input id="acc-date" type="date"/></div>
+<div class="form-group"><label>구분</label><select id="acc-type" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px;color:var(--text);font-size:14px"><option value="매출">매출</option><option value="매입">매입</option></select></div>
+</div>
+<div class="form-group"><label>거래처</label><input id="acc-partner" placeholder="거래처명" type="text"/></div>
+<div class="form-group"><label>품목</label><input id="acc-item" placeholder="품목" type="text"/></div>
+<div class="form-group"><label>금액 (공급가액, 원)</label><input id="acc-amount" min="0" placeholder="0" type="number"/></div>
+<div class="form-group"><label>증빙 유형</label><select id="acc-evidence" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px;color:var(--text);font-size:14px"><option value="세금계산서">세금계산서</option><option value="카드">카드</option><option value="현금영수증">현금영수증</option><option value="기타">기타</option></select></div>
+<div class="form-group"><label>메모</label><input id="acc-memo" placeholder="메모" type="text"/></div>
+<button class="calc-btn" onclick="saveAccountingEntry()">거래 저장</button>
+</div>
+</div>
+<div class="panel">
+<div class="toolbar">
+<div class="toolbar-filters">
+<select class="filter-select" id="acc-month-filter" onchange="loadAccountingList()">
+<option value="">전체</option>
+</select>
+<select class="filter-select" id="acc-type-filter" onchange="loadAccountingList()">
+<option value="">매입/매출 전체</option>
+<option value="매출">매출</option>
+<option value="매입">매입</option>
+</select>
+</div>
+<button class="action-btn" onclick="exportAccountingCSV()">📥 CSV 내보내기</button>
+</div>
+<div class="panel-body" id="accounting-list" style="max-height:320px;overflow-y:auto">
+<div class="empty-state" id="acc-empty"><div class="empty-icon">📒</div><div>저장된 거래가 없습니다</div></div>
+<div id="acc-rows" style="display:none"></div>
+</div>
+</div>
+<div class="panel" style="margin-top:16px">
+<div class="panel-header">📎 <span>증빙서류 등록</span></div>
+<div class="panel-body">
+<div class="receipt-step">
+<div class="receipt-step-label">① 서류 종류 선택</div>
+<div class="receipt-type-grid" id="receipt-type-grid">
+<button class="receipt-type-btn" data-type="카드영수증" onclick="setReceiptType('카드영수증', this)" type="button"><span class="r-icon">💳</span><span>카드영수증</span></button>
+<button class="receipt-type-btn" data-type="현금영수증" onclick="setReceiptType('현금영수증', this)" type="button"><span class="r-icon">🧾</span><span>현금영수증</span></button>
+<button class="receipt-type-btn" data-type="세금계산서" onclick="setReceiptType('세금계산서', this)" type="button"><span class="r-icon">📄</span><span>세금계산서</span></button>
+<button class="receipt-type-btn" data-type="간이영수증" onclick="setReceiptType('간이영수증', this)" type="button"><span class="r-icon">📋</span><span>간이영수증</span></button>
+<button class="receipt-type-btn" data-type="거래명세서" onclick="setReceiptType('거래명세서', this)" type="button"><span class="r-icon">📑</span><span>거래명세서</span></button>
+<button class="receipt-type-btn" data-type="기타" onclick="setReceiptType('기타', this)" type="button"><span class="r-icon">📂</span><span>기타</span></button>
+</div>
+</div>
+<div class="receipt-step">
+<div class="receipt-step-label">② 파일 첨부</div>
+<label class="receipt-file-wrap">
+<input accept="image/*,application/pdf" capture="environment" id="receipt-file" onchange="onReceiptFileChange(this)" type="file"/>
+<span class="receipt-file-label">📸 사진 찍기 / 파일 선택 (JPG, PNG, PDF)</span>
+</label>
+<div class="receipt-preview" id="receipt-preview"></div>
+<button class="action-btn" onclick="ocrReceiptAutoFill()" type="button" style="margin-top:8px; width:100%;">🔍 OCR 자동 인식 — 날짜·금액·거래처 자동 입력</button>
+</div>
+<div class="receipt-step">
+<div class="receipt-step-label">③ 내용 입력 (필수)</div>
+<div class="form-group"><label>날짜</label><input id="receipt-date" onchange="updateReceiptSaveButton()" type="date"/></div>
+<div class="form-group"><label>금액 (원)</label><input id="receipt-amount" inputmode="numeric" min="0" oninput="updateReceiptSaveButton()" placeholder="0" type="number"/></div>
+<div class="form-group"><label>거래처</label><input id="receipt-vendor" oninput="updateReceiptSaveButton()" placeholder="상호명" type="text"/></div>
+</div>
+<div class="receipt-step">
+<details class="receipt-extra">
+<summary>④ 추가 정보 (선택)</summary>
+<div class="form-group"><label>구분</label><select class="filter-select" id="receipt-tax-type" style="width:100%"><option value="매입">매입</option><option value="매출">매출</option></select></div>
+<div class="form-group"><label>품목</label><input id="receipt-item" placeholder="품목" type="text"/></div>
+<div class="form-group"><label>메모</label><input id="receipt-memo" placeholder="메모" type="text"/></div>
+</details>
+</div>
+<button class="calc-btn receipt-save-btn" disabled="" id="receipt-save-btn" onclick="saveReceiptUpload()" type="button">📁 저장 + 드라이브 업로드</button>
+</div>
+</div>
+<div class="panel" style="margin-top:16px">
+<div class="panel-header">📂 <span>등록된 증빙서류</span></div>
+<div class="toolbar">
+<div class="toolbar-filters">
+<select class="filter-select" id="receipt-month-filter" onchange="loadReceiptList()">
+<option value="">이번달</option>
+</select>
+<select class="filter-select" id="receipt-type-filter" onchange="loadReceiptList()">
+<option value="">종류 전체</option>
+<option value="카드영수증">💳 카드영수증</option>
+<option value="현금영수증">🧾 현금영수증</option>
+<option value="세금계산서">📄 세금계산서</option>
+<option value="간이영수증">📋 간이영수증</option>
+<option value="거래명세서">📑 거래명세서</option>
+<option value="기타">📂 기타</option>
+</select>
+</div>
+<button class="action-btn" onclick="exportReceiptsCSV()">📥 CSV 내보내기 (세무사 제출용)</button>
+</div>
+<div class="panel-body" style="overflow-x:auto">
+<table class="compare-table" id="receipt-table">
+<thead><tr><th>날짜</th><th>종류</th><th>거래처</th><th>금액</th><th>파일</th></tr></thead>
+<tbody id="receipt-tbody"></tbody>
+</table>
+<div id="receipt-summary" style="margin-top:10px;font-size:13px;color:var(--text-muted)"></div>
+<div class="empty-state" id="receipt-empty"><div class="empty-icon">📎</div><div>등록된 증빙서류가 없습니다</div></div>
+</div>
+</div>
+</div>
+        <div class="page" id="page-studio">
+            <div style="max-width:1200px;margin:0 auto;padding:20px 0;">
+                <!-- 상단: 입력 폼 + 미리보기 -->
+                <div style="display:grid;grid-template-columns:380px 1fr;gap:20px;">
+                    <!-- 좌: 입력 패널 -->
+                    <div class="panel">
+                        <div class="panel-header">🎨 AI 상세페이지 생성기</div>
+                        <div class="panel-body" style="display:flex;flex-direction:column;gap:12px;">
+                            <div class="form-group">
+                                <label>📦 상품명</label>
+                                <input type="text" id="studio-product-name" placeholder="예: 프리미엄 스테인리스 텀블러 500ml" oninput="updateDetailPreview()">
+                            </div>
+                            <div class="form-group">
+                                <label>📝 상품 설명 (AI가 보강)</label>
+                                <textarea id="studio-product-desc" rows="3" placeholder="간단한 설명을 입력하면 AI가 매력적인 카피로 변환합니다" oninput="updateDetailPreview()"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>🖼️ 대표 이미지 URL</label>
+                                <input type="text" id="studio-image-url" placeholder="https://..." oninput="updateDetailPreview()">
+                            </div>
+                            <div class="form-group">
+                                <label>⭐ 특장점 (줄바꿈 구분)</label>
+                                <textarea id="studio-features" rows="4" placeholder="보온 12시간 유지&#10;BPA Free 친환경 소재&#10;세련된 매트 블랙 디자인&#10;원터치 오픈 뚜껑" oninput="updateDetailPreview()"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>💰 판매가</label>
+                                <input type="number" id="studio-price" placeholder="29900" oninput="updateDetailPreview()">
+                            </div>
+                            <div class="form-group">
+                                <label>🎯 템플릿 스타일</label>
+                                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+                                    <button class="preset-btn" onclick="setDetailTemplate('clean')" style="padding:8px 4px;font-size:10px;border-radius:8px;" id="tpl-clean">✨ 깔끔</button>
+                                    <button class="preset-btn" onclick="setDetailTemplate('premium')" style="padding:8px 4px;font-size:10px;border-radius:8px;" id="tpl-premium">💎 프리미엄</button>
+                                    <button class="preset-btn" onclick="setDetailTemplate('trendy')" style="padding:8px 4px;font-size:10px;border-radius:8px;" id="tpl-trendy">🔥 트렌디</button>
+                                </div>
+                            </div>
+                            <button class="action-btn primary" onclick="generateAICopy()" style="width:100%;padding:12px;">
+                                🤖 AI 카피라이팅 생성
+                            </button>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                <button class="action-btn" onclick="copyDetailHTML()" style="padding:10px;">📋 HTML 복사</button>
+                                <button class="action-btn" onclick="downloadDetailHTML()" style="padding:10px;">💾 HTML 저장</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 우: 미리보기 -->
+                    <div class="panel">
+                        <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;">
+                            <span>👁️ 상세페이지 미리보기</span>
+                            <span id="studio-char-count" style="font-size:10px;color:var(--text-muted);">0자</span>
+                        </div>
+                        <div class="panel-body" style="padding:0;overflow:hidden;">
+                            <iframe id="detail-preview-frame" style="width:100%;min-height:600px;border:none;background:#fff;" sandbox="allow-same-origin"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page" id="page-oms">
+            <div style="max-width:1200px;margin:0 auto;padding:20px 0;">
+
+                <!-- ★ 섹션 1: 채널 연동 현황 -->
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;">
+                    <div class="panel" style="padding:16px;text-align:center;">
+                        <div style="font-size:28px;margin-bottom:8px;">🟢</div>
+                        <div style="font-weight:800;font-size:14px;color:var(--smart);">스마트스토어</div>
+                        <div id="oms-smart-status" style="font-size:11px;color:var(--text-muted);margin-top:4px;">API 키 등록 필요</div>
+                        <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;">
+                            <div style="background:rgba(74,222,128,0.06);padding:6px;border-radius:6px;">
+                                <div style="color:var(--text-muted);">신규주문</div>
+                                <div id="oms-smart-new" style="font-weight:800;font-size:16px;color:var(--smart);">0</div>
+                            </div>
+                            <div style="background:rgba(74,222,128,0.06);padding:6px;border-radius:6px;">
+                                <div style="color:var(--text-muted);">배송중</div>
+                                <div id="oms-smart-ship" style="font-weight:800;font-size:16px;color:var(--accent2);">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel" style="padding:16px;text-align:center;">
+                        <div style="font-size:28px;margin-bottom:8px;">🟠</div>
+                        <div style="font-weight:800;font-size:14px;color:var(--coupang);">쿠팡</div>
+                        <div id="oms-coupang-status" style="font-size:11px;color:var(--text-muted);margin-top:4px;">API 키 등록 필요</div>
+                        <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;">
+                            <div style="background:rgba(255,105,0,0.06);padding:6px;border-radius:6px;">
+                                <div style="color:var(--text-muted);">신규주문</div>
+                                <div id="oms-coupang-new" style="font-weight:800;font-size:16px;color:var(--coupang);">0</div>
+                            </div>
+                            <div style="background:rgba(255,105,0,0.06);padding:6px;border-radius:6px;">
+                                <div style="color:var(--text-muted);">배송중</div>
+                                <div id="oms-coupang-ship" style="font-weight:800;font-size:16px;color:var(--accent2);">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel" style="padding:16px;text-align:center;">
+                        <div style="font-size:28px;margin-bottom:8px;">🔴</div>
+                        <div style="font-weight:800;font-size:14px;color:var(--open);">11번가</div>
+                        <div id="oms-11st-status" style="font-size:11px;color:var(--text-muted);margin-top:4px;">API 키 등록 필요</div>
+                        <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;">
+                            <div style="background:rgba(167,139,250,0.06);padding:6px;border-radius:6px;">
+                                <div style="color:var(--text-muted);">신규주문</div>
+                                <div id="oms-11st-new" style="font-weight:800;font-size:16px;color:var(--open);">0</div>
+                            </div>
+                            <div style="background:rgba(167,139,250,0.06);padding:6px;border-radius:6px;">
+                                <div style="color:var(--text-muted);">배송중</div>
+                                <div id="oms-11st-ship" style="font-weight:800;font-size:16px;color:var(--accent2);">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ★ 섹션 2: 주문 통합 관리 -->
+                <div class="panel" style="margin-bottom:20px;">
+                    <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;">
+                        <span>📦 주문 통합 관리</span>
+                        <div style="display:flex;gap:6px;">
+                            <button class="preset-btn oms-filter active" onclick="filterOmsOrders('all',this)" style="font-size:10px;padding:4px 10px;">전체</button>
+                            <button class="preset-btn oms-filter" onclick="filterOmsOrders('new',this)" style="font-size:10px;padding:4px 10px;">🆕 신규</button>
+                            <button class="preset-btn oms-filter" onclick="filterOmsOrders('shipping',this)" style="font-size:10px;padding:4px 10px;">🚚 배송중</button>
+                            <button class="preset-btn oms-filter" onclick="filterOmsOrders('done',this)" style="font-size:10px;padding:4px 10px;">✅ 완료</button>
+                            <button class="preset-btn oms-filter" onclick="filterOmsOrders('return',this)" style="font-size:10px;padding:4px 10px;">↩️ 반품</button>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="padding:0;">
+                        <div style="padding:12px;display:flex;gap:8px;">
+                            <input type="text" id="oms-search" placeholder="주문번호, 상품명, 수취인 검색..." style="flex:1;" oninput="searchOmsOrders()">
+                            <button class="action-btn" onclick="refreshOmsOrders()">🔄 동기화</button>
+                        </div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%;border-collapse:collapse;font-size:12px;" id="oms-order-table">
+                                <thead>
+                                    <tr style="background:rgba(255,255,255,0.03);text-align:left;">
+                                        <th style="padding:10px 12px;color:var(--text-muted);font-weight:600;">채널</th>
+                                        <th style="padding:10px 12px;color:var(--text-muted);font-weight:600;">주문번호</th>
+                                        <th style="padding:10px 12px;color:var(--text-muted);font-weight:600;">상품명</th>
+                                        <th style="padding:10px 12px;color:var(--text-muted);font-weight:600;">수취인</th>
+                                        <th style="padding:10px 12px;color:var(--text-muted);font-weight:600;">결제액</th>
+                                        <th style="padding:10px 12px;color:var(--text-muted);font-weight:600;">상태</th>
+                                        <th style="padding:10px 12px;color:var(--text-muted);font-weight:600;">주문일</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="oms-order-tbody">
+                                    <tr><td colspan="7" style="padding:40px;text-align:center;color:var(--text-muted);">
+                                        <div style="font-size:32px;margin-bottom:8px;">📭</div>
+                                        <div>T7에서 마켓 API 키를 등록하면 주문이 자동 수집됩니다</div>
+                                        <button class="action-btn" onclick="loadDemoOmsOrders()" style="margin-top:12px;">📋 데모 데이터 로드</button>
+                                    </td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ★ 섹션 3: 배송 현황 + 채널 성과 -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <!-- 배송 추적 현황 -->
+                    <div class="panel">
+                        <div class="panel-header">🚚 배송 추적 현황</div>
+                        <div class="panel-body">
+                            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;">
+                                <div style="padding:12px;background:rgba(59,130,246,0.06);border-radius:10px;">
+                                    <div style="font-size:9px;color:var(--text-muted);">준비중</div>
+                                    <div id="oms-stat-ready" style="font-size:20px;font-weight:800;color:var(--accent2);">0</div>
+                                </div>
+                                <div style="padding:12px;background:rgba(245,158,11,0.06);border-radius:10px;">
+                                    <div style="font-size:9px;color:var(--text-muted);">배송중</div>
+                                    <div id="oms-stat-shipping" style="font-size:20px;font-weight:800;color:var(--warn);">0</div>
+                                </div>
+                                <div style="padding:12px;background:rgba(74,222,128,0.06);border-radius:10px;">
+                                    <div style="font-size:9px;color:var(--text-muted);">배송완료</div>
+                                    <div id="oms-stat-done" style="font-size:20px;font-weight:800;color:var(--accent);">0</div>
+                                </div>
+                                <div style="padding:12px;background:rgba(248,81,73,0.06);border-radius:10px;">
+                                    <div style="font-size:9px;color:var(--text-muted);">반품/교환</div>
+                                    <div id="oms-stat-return" style="font-size:20px;font-weight:800;color:var(--danger);">0</div>
+                                </div>
+                            </div>
+                            <div id="oms-delivery-list" style="margin-top:12px;max-height:200px;overflow-y:auto;font-size:11px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- 채널 성과 분석 -->
+                    <div class="panel">
+                        <div class="panel-header">📊 채널 성과 분석</div>
+                        <div class="panel-body">
+                            <div style="display:flex;flex-direction:column;gap:10px;">
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <span style="font-size:11px;width:80px;color:var(--smart);font-weight:700;">스마트스토어</span>
+                                    <div style="flex:1;height:20px;background:rgba(255,255,255,0.05);border-radius:10px;overflow:hidden;">
+                                        <div id="oms-bar-smart" style="height:100%;background:linear-gradient(90deg,var(--smart),#22c55e);width:0%;border-radius:10px;transition:width 0.6s;"></div>
+                                    </div>
+                                    <span id="oms-pct-smart" style="font-size:11px;font-weight:700;width:40px;text-align:right;">0%</span>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <span style="font-size:11px;width:80px;color:var(--coupang);font-weight:700;">쿠팡</span>
+                                    <div style="flex:1;height:20px;background:rgba(255,255,255,0.05);border-radius:10px;overflow:hidden;">
+                                        <div id="oms-bar-coupang" style="height:100%;background:linear-gradient(90deg,var(--coupang),#f97316);width:0%;border-radius:10px;transition:width 0.6s;"></div>
+                                    </div>
+                                    <span id="oms-pct-coupang" style="font-size:11px;font-weight:700;width:40px;text-align:right;">0%</span>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <span style="font-size:11px;width:80px;color:var(--open);font-weight:700;">11번가</span>
+                                    <div style="flex:1;height:20px;background:rgba(255,255,255,0.05);border-radius:10px;overflow:hidden;">
+                                        <div id="oms-bar-11st" style="height:100%;background:linear-gradient(90deg,var(--open),#8b5cf6);width:0%;border-radius:10px;transition:width 0.6s;"></div>
+                                    </div>
+                                    <span id="oms-pct-11st" style="font-size:11px;font-weight:700;width:40px;text-align:right;">0%</span>
+                                </div>
+                            </div>
+                            <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;">
+                                <div style="padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;text-align:center;">
+                                    <div style="color:var(--text-muted);">총 주문 건수</div>
+                                    <div id="oms-total-orders" style="font-size:18px;font-weight:800;color:var(--accent);">0건</div>
+                                </div>
+                                <div style="padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;text-align:center;">
+                                    <div style="color:var(--text-muted);">총 매출</div>
+                                    <div id="oms-total-revenue" style="font-size:18px;font-weight:800;color:var(--accent2);">0원</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="page" id="page-setup">
+            <div style="max-width:960px; margin:0 auto; padding:20px 0;">
+
+                <!-- ===== 섹션 1: 구글 시트 연결 ===== -->
+                <div class="panel" style="margin-bottom:20px; border:1px solid var(--accent);">
+                    <div class="panel-header" style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:18px;">📊</span> 구글 시트 연결
+                        <span id="sheet-status-badge" style="margin-left:auto; padding:2px 10px; border-radius:20px; font-size:11px; background:var(--danger); color:#fff;">미연결</span>
+                    </div>
+                    <div class="panel-body">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                            <div>
+                                <div class="form-group">
+                                    <label>Step 1 — Apps Script 배포 URL</label>
+                                    <p style="font-size:11px; color:var(--text-muted); margin:4px 0 8px;">구글 시트 → 확장 프로그램 → Apps Script → 배포 URL을 붙여넣으세요.</p>
+                                    <div style="display:flex; gap:8px;">
+                                        <input id="script-url-input" placeholder="https://script.google.com/macros/s/.../exec" style="flex:1;" type="text"/>
+                                        <button class="primary-btn" onclick="saveScriptUrl()" style="white-space:nowrap;">저장 & 테스트</button>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-top:12px;">
+                                    <label>시트 ID</label>
+                                    <span id="display-sheet-id" style="color:var(--accent2); font-family:monospace; font-size:12px;">--</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="form-group">
+                                    <label>Step 2 — Apps Script 코드 설치</label>
+                                    <p style="font-size:11px; color:var(--text-muted); margin:4px 0 8px;">아래 버튼으로 코드를 복사 → Apps Script 에디터에 붙여넣기 → 배포해주세요.</p>
+                                    <button class="action-btn" onclick="copyScript()" style="width:100%;">📋 Apps Script 코드 복사</button>
+                                </div>
+                                <div class="form-group" style="margin-top:12px;">
+                                    <label>서비스 계정 (Bot)</label>
+                                    <span style="color:var(--text-muted); font-size:11px; word-break:break-all;">seller-agent@gen-lang-client-0957925969.iam.gserviceaccount.com</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== 섹션 1.5: 소싱 성향 설정 ===== -->
+                <div class="panel" style="margin-bottom:20px;">
+                    <div class="panel-header" style="font-size:16px;">🎯 소싱 성향 설정</div>
+                    <div class="panel-body">
+                        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">
+                            AI Score 계산 시 적용되는 가중치 프리셋을 선택하세요. 선택에 따라 시장분석·경쟁강도·트렌드·마진·독점도의 반영 비중이 달라집니다.
+                        </p>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;" id="sourcing-style-grid">
+                            <button class="btn sourcing-style-btn" data-style="balanced" onclick="setSourcingStyle('balanced')" style="padding:12px;border-radius:10px;background:var(--surface);border:2px solid var(--border);text-align:left;">
+                                <div style="font-weight:800;font-size:13px;margin-bottom:4px;">⚖️ 균형형</div>
+                                <div style="font-size:10px;color:var(--text-muted);">모든 지표를 균등하게 평가</div>
+                                <div style="font-size:9px;color:var(--accent);margin-top:4px;">시장30 성장25 소셜15 마진15 독점15</div>
+                            </button>
+                            <button class="btn sourcing-style-btn" data-style="competition" onclick="setSourcingStyle('competition')" style="padding:12px;border-radius:10px;background:var(--surface);border:2px solid var(--border);text-align:left;">
+                                <div style="font-weight:800;font-size:13px;margin-bottom:4px;">🛡️ 경쟁 회피형</div>
+                                <div style="font-size:10px;color:var(--text-muted);">블루오션 진입 우선</div>
+                                <div style="font-size:9px;color:var(--accent);margin-top:4px;">시장45 성장15 소셜10 마진10 독점20</div>
+                            </button>
+                            <button class="btn sourcing-style-btn" data-style="trend" onclick="setSourcingStyle('trend')" style="padding:12px;border-radius:10px;background:var(--surface);border:2px solid var(--border);text-align:left;">
+                                <div style="font-weight:800;font-size:13px;margin-bottom:4px;">🚀 트렌드 추종형</div>
+                                <div style="font-size:10px;color:var(--text-muted);">급성장 키워드 포착</div>
+                                <div style="font-size:9px;color:var(--accent);margin-top:4px;">시장15 성장40 소셜25 마진10 독점10</div>
+                            </button>
+                            <button class="btn sourcing-style-btn" data-style="margin" onclick="setSourcingStyle('margin')" style="padding:12px;border-radius:10px;background:var(--surface);border:2px solid var(--border);text-align:left;">
+                                <div style="font-weight:800;font-size:13px;margin-bottom:4px;">💰 마진 우선형</div>
+                                <div style="font-size:10px;color:var(--text-muted);">높은 수익률 집중</div>
+                                <div style="font-size:9px;color:var(--accent);margin-top:4px;">시장20 성장15 소셜10 마진40 독점15</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== 섹션 1.6: 마켓별 수수료율 설정 ===== -->
+                <div class="panel" style="margin-bottom:20px;">
+                    <div class="panel-header" style="font-size:16px;">💸 마켓별 판매 수수료율</div>
+                    <div class="panel-body">
+                        <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">
+                            마진 시뮬레이터에서 사용되는 마켓별 수수료율입니다. 카테고리에 따라 조정하세요 (통상 6~11%).
+                        </p>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px;">
+                            <div class="form-group">
+                                <label style="font-size:10px;">🟢 네이버 스마트스토어 (%)</label>
+                                <input id="fee-naver" type="number" value="8" min="0" max="30" step="0.1" style="width:100%;" onchange="saveMarketFees()">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:10px;">🔴 쿠팡 마켓플레이스 (%)</label>
+                                <input id="fee-coupang" type="number" value="10.8" min="0" max="30" step="0.1" style="width:100%;" onchange="saveMarketFees()">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:10px;">🟠 11번가 (%)</label>
+                                <input id="fee-11st" type="number" value="9" min="0" max="30" step="0.1" style="width:100%;" onchange="saveMarketFees()">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:10px;">🔵 위메프/티몬 (%)</label>
+                                <input id="fee-wemakeprice" type="number" value="11" min="0" max="30" step="0.1" style="width:100%;" onchange="saveMarketFees()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== 섹션 1.7: 소싱 상수 설정 ===== -->
+                <div class="panel" style="margin-bottom:20px;">
+                    <div class="panel-header" style="font-size:16px;">⚙️ 소싱 상수 (Landed Cost 변수)</div>
+                    <div class="panel-body">
+                        <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">
+                            해외 사입 Landed Cost 계산에 사용되는 상수입니다. 환율 API 연동 시 자동 갱신됩니다.
+                        </p>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px;">
+                            <div class="form-group">
+                                <label style="font-size:10px;">💱 위안화 환율 (원)</label>
+                                <input id="const-exchange" type="number" value="195" min="100" max="300" step="0.5" style="width:100%;" onchange="saveSourcingConstants()">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:10px;">🚢 해상 기본 운임 (원)</label>
+                                <input id="const-freight-base" type="number" value="1000" min="0" style="width:100%;" onchange="saveSourcingConstants()">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:10px;">📦 kg당 운임 (원)</label>
+                                <input id="const-freight-per-kg" type="number" value="1500" min="0" style="width:100%;" onchange="saveSourcingConstants()">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:10px;">🏛️ 관세+부가세 (%)</label>
+                                <input id="const-customs-tax" type="number" value="18" min="0" max="50" step="0.5" style="width:100%;" onchange="saveSourcingConstants()">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:10px;">📮 국내 택배비 (원)</label>
+                                <input id="const-domestic-ship" type="number" value="3000" min="0" style="width:100%;" onchange="saveSourcingConstants()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== 섹션 2: API 키 관리 ===== -->
+                <div class="panel" style="margin-bottom:20px;">
+                    <div class="panel-header" style="font-size:16px;">🔑 API 키 관리</div>
+                    <div class="panel-body">
+
+                        <!-- 2-1: 백엔드 서버 -->
+                        <div style="margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border);">
+                            <div style="font-weight:700; margin-bottom:8px; color:var(--text);">⚡ 백엔드 서버 (필수)</div>
+                            <p style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">시중가 조회, 도매 검색, Landed Cost 계산 등 모든 분석 기능의 엔진입니다.</p>
+                            <div style="display:flex; gap:8px;">
+                                <input id="api-backendUrl" placeholder="https://seller-margin-api-xxx.onrender.com" style="flex:1;">
+                                <button class="action-btn" onclick="saveApiKey('backendUrl')">저장</button>
+                                <button class="action-btn" onclick="testBackendUrl()">테스트</button>
+                            </div>
+                        </div>
+
+                        <!-- 2-2: 네이버 API -->
+                        <div style="margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border);">
+                            <div style="font-weight:700; margin-bottom:4px; color:var(--text);">🔍 네이버 API (T1 소싱 / T2 검색)</div>
+                            <p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">네이버 개발자 센터(<a href="https://developers.naver.com" target="_blank" style="color:var(--accent);">developers.naver.com</a>)에서 <strong>검색 API</strong> 애플리케이션을 등록하고 발급받으세요. 상품 시중가 조회, 경쟁 분석, 데이터랩 트렌드에 사용됩니다.</p>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                                <div class="form-group">
+                                    <label>Client ID</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <input id="api-naver-license" type="password" placeholder="Client ID" style="flex:1;">
+                                        <button class="action-btn" onclick="saveApiKey('naver-license')" title="저장">💾</button>
+                                        <button class="action-btn" onclick="toggleApiKeyMask('naver-license')" title="보기/숨기기">👁️</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Client Secret</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <input id="api-naver-secret" type="password" placeholder="Client Secret" style="flex:1;">
+                                        <button class="action-btn" onclick="saveApiKey('naver-secret')" title="저장">💾</button>
+                                        <button class="action-btn" onclick="toggleApiKeyMask('naver-secret')" title="보기/숨기기">👁️</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2-3: 도매 소싱 API -->
+                        <div style="margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border);">
+                            <div style="font-weight:700; margin-bottom:4px; color:var(--text);">📦 도매 소싱 API (T2 도매검색)</div>
+                            <p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">각 도매 플랫폼에서 발급한 API 키를 입력하세요. 도매꾹: <a href="https://domeggook.com" target="_blank" style="color:var(--accent);">domeggook.com</a> 마이페이지 → API 관리에서 발급.</p>
+                            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                                <div class="form-group">
+                                    <label>도매꾹</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <input id="api-domeggook" type="password" placeholder="API Key" style="flex:1;">
+                                        <button class="action-btn" onclick="saveApiKey('domeggook')">💾</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>도매매</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <input id="api-domemae" type="password" placeholder="API Key" style="flex:1;">
+                                        <button class="action-btn" onclick="saveApiKey('domemae')">💾</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>오너클랜</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <input id="api-onchannel" type="password" placeholder="API Key" style="flex:1;">
+                                        <button class="action-btn" onclick="saveApiKey('onchannel')">💾</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2-4: 환율 API -->
+                        <div style="margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border);">
+                            <div style="font-weight:700; margin-bottom:4px; color:var(--text);">💱 한국수출입은행 환율 API (T2 해외소싱)</div>
+                            <p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">실시간 환율 조회에 사용됩니다. <a href="https://www.koreaexim.go.kr/ir/HPHKIR020M01?apino=2" target="_blank" style="color:var(--accent);">한국수출입은행 Open API</a>에서 인증키를 발급받으세요 (무료, 일 1,000건).</p>
+                            <div style="display:flex; gap:8px;">
+                                <input id="api-koreaexim" type="password" placeholder="인증키 (authkey)" style="flex:1;">
+                                <button class="action-btn" onclick="saveApiKey('koreaexim')">💾</button>
+                                <button class="action-btn" onclick="toggleApiKeyMask('koreaexim')">👁️</button>
+                            </div>
+                        </div>
+
+                        <!-- 2-5: Google AI API -->
+                        <div style="margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border);">
+                            <div style="font-weight:700; margin-bottom:4px; color:var(--text);">🤖 Google AI API (T5 마케팅 스튜디오)</div>
+                            <p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">상품 이미지 정제(Vision) 및 마케팅 카피 생성(Gemini)에 사용됩니다. <a href="https://console.cloud.google.com/apis" target="_blank" style="color:var(--accent);">Google Cloud Console</a>에서 발급.</p>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                                <div class="form-group">
+                                    <label>Cloud Vision API Key</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <input id="api-google-vision" type="password" placeholder="Vision API Key" style="flex:1;">
+                                        <button class="action-btn" onclick="saveApiKey('google-vision')">💾</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Gemini API Key</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <input id="api-google-gemini" type="password" placeholder="Gemini API Key" style="flex:1;">
+                                        <button class="action-btn" onclick="saveApiKey('google-gemini')">💾</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2-6: 마켓 플랫폼 API (확장) -->
+                        <div>
+                            <div style="font-weight:700; margin-bottom:4px; color:var(--text);">🛒 마켓 플랫폼 API (T6 OMS 확장)</div>
+                            <p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">각 판매 마켓의 주문관리 API 키입니다. OMS 자동 관제를 위해 필요합니다.</p>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                                <div class="form-group">
+                                    <label>스마트스토어 Client ID</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <input id="api-smartstore-client-id" type="password" placeholder="Client ID" style="flex:1;">
+                                        <button class="action-btn" onclick="saveApiKey('smartstore-client-id')">💾</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>스마트스토어 Client Secret</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <input id="api-smartstore-client-secret" type="password" placeholder="Client Secret" style="flex:1;">
+                                        <button class="action-btn" onclick="saveApiKey('smartstore-client-secret')">💾</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>쿠팡 Access Key</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <input id="api-coupang-access-key" type="password" placeholder="Access Key" style="flex:1;">
+                                        <button class="action-btn" onclick="saveApiKey('coupang-access-key')">💾</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>쿠팡 Secret Key</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <input id="api-coupang-secret-key" type="password" placeholder="Secret Key" style="flex:1;">
+                                        <button class="action-btn" onclick="saveApiKey('coupang-secret-key')">💾</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>11번가 API Key</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <input id="api-11st-api-key" type="password" placeholder="API Key" style="flex:1;">
+                                        <button class="action-btn" onclick="saveApiKey('11st-api-key')">💾</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>카카오쇼핑 API Key</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <input id="api-kakao" type="password" placeholder="API Key" style="flex:1;">
+                                        <button class="action-btn" onclick="saveApiKey('kakao')">💾</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- ===== 섹션 2.5: 카카오 알림톡 연동 ===== -->
+                <div class="panel" style="margin-bottom:20px;">
+                    <div class="panel-header" style="font-size:16px;">💬 카카오 알림톡 (자동 알림)</div>
+                    <div class="panel-body">
+                        <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">가격 변동, 주문 알림, 재고 경고 등을 카카오톡 나에게 보내기로 자동 수신합니다. 가격 추적 사용 시 Apps Script 스크립트 속성에도 <strong>KAKAO_TOKEN</strong>을 등록해주세요.</p>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                            <div class="form-group">
+                                <label>REST API 키</label>
+                                <div style="display:flex; gap:6px;">
+                                    <input id="api-kakao" type="password" placeholder="REST API 키 입력" style="flex:1;" autocomplete="off">
+                                    <button class="action-btn" onclick="saveApiKey('kakao')" title="저장">💾</button>
+                                    <button class="action-btn" onclick="toggleApiKeyMask('kakao')" title="보기/숨기기">👁️</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Access Token (발송용)</label>
+                                <div style="display:flex; gap:6px;">
+                                    <input id="api-kakao-token" type="password" placeholder="실제 발송 인가를 위한 Token" style="flex:1;" autocomplete="off">
+                                    <button class="action-btn" onclick="saveApiKey('kakao-token')" title="저장">💾</button>
+                                    <button class="action-btn" onclick="toggleApiKeyMask('kakao-token')" title="보기/숨기기">👁️</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top:12px; display:flex; gap:12px; align-items:center;">
+                            <button class="action-btn" onclick="testKakaoAlert()" style="background:var(--accent2); color:#fff; border:none;">🔔 테스트 알림 보내기</button>
+                            <div id="kakao-test-result" style="font-size:12px;"></div>
+                        </div>
+                        <div style="margin-top:12px; padding:10px; background:var(--bg-secondary); border-radius:8px; font-size:11px; line-height:1.6; color:var(--text-muted);">
+                            <strong>발급 가이드:</strong><br>
+                            1. <a href="https://developers.kakao.com" target="_blank" style="color:var(--accent);">developers.kakao.com</a> 접속 → 앱 생성<br>
+                            2. 앱 키 → REST API 키 복사 → 위 필드에 입력<br>
+                            3. 카카오 로그인 활성화 → 동의항목에 <em>카카오톡 메시지 전송</em> 추가<br>
+                            4. 인가 코드 발급 → Access Token 발급 → 위 Token 필드에 입력<br>
+                            5. "테스트 알림 보내기" 클릭으로 정상 여부 확인
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== 섹션 3: 보안 & 접근 제어 ===== -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+                    <div class="panel">
+                        <div class="panel-header">🔐 접근 권한 관리</div>
+                        <div class="panel-body">
+                            <div class="form-group">
+                                <label>화이트리스트 구글 이메일 (콤마로 구분)</label>
+                                <textarea id="allowed-emails-config-T7" placeholder="husband@gmail.com, wife@gmail.com" style="height:60px;" onchange="localStorage.setItem('allowed-emails-config', this.value)"></textarea>
+                            </div>
+                            <div class="form-group" style="margin-top:10px;">
+                                <label>🔑 내 개인 PIN 설정 (4자리) — <span id="pin-owner-display" style="color:var(--accent); font-weight:600;"></span></label>
+                                <div style="display:flex; gap:8px;">
+                                    <input type="password" id="master-pin-config-T7" placeholder="새 PIN 입력" maxlength="4" style="flex:1;">
+                                    <button class="action-btn" onclick="savePersonalPin()">내 PIN 저장</button>
+                                </div>
+                                <p style="font-size:11px; color:var(--text-muted); margin-top:6px;">로그인한 이메일별로 개별 PIN이 저장됩니다. API 키 수정은 관리자(ohnayu@gmail.com)만 가능합니다.</p>
+                            </div>
+                            <div class="form-group" style="margin-top:10px;">
+                                <button class="action-btn" onclick="signOut()" style="background:var(--danger); color:#fff; border:none; height:36px; width:100%;">🚪 로그아웃</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ★ 섹션 4.5: API 키 만료 알림 수신자 설정 -->
+                    <div class="panel" style="margin-bottom:10px;">
+                        <div class="panel-header" style="display:flex;align-items:center;gap:8px;">
+                            <span style="font-size:16px;">🔔</span> API 키 만료 알림
+                            <span id="api-expiry-badge" style="margin-left:auto;padding:2px 10px;border-radius:20px;font-size:10px;background:var(--accent);color:#0d0f14;font-weight:700;">정상</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-group">
+                                <label>📧 만료 알림 수신 이메일</label>
+                                <p style="font-size:11px;color:var(--text-muted);margin:4px 0 8px;">API 키 만료 7일 전 알림을 받을 이메일을 등록하세요. (콤마로 구분)</p>
+                                <div style="display:flex;gap:8px;">
+                                    <input type="text" id="admin-alert-email" placeholder="admin@gmail.com, partner@gmail.com" style="flex:1;" onchange="localStorage.setItem('admin-alert-emails', this.value)">
+                                    <button class="action-btn" onclick="saveAlertEmails()">저장</button>
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-top:12px;">
+                                <label>📋 API 키 만료 현황</label>
+                                <div id="api-expiry-table" style="margin-top:8px;font-size:12px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">🚀 시스템 관리</div>
+                        <div class="panel-body">
+                            <div class="form-group">
+                                <label>전체 초기화</label>
+                                <p style="font-size:11px; color:var(--text-muted); margin:4px 0 8px;">구글 시트 탭과 드라이브 폴더를 자동 생성합니다.</p>
+                                <button class="calc-btn" onclick="runFullInit()" style="background:var(--accent); color:#0d0f14; width:100%;">전체 초기화 실행</button>
+                            </div>
+                            <div class="form-group" style="margin-top:16px;">
+                                <label>플랫폼 확장</label>
+                                <p style="font-size:11px; color:var(--text-muted); margin:4px 0 8px;">사용자 정의 마켓/소싱 플랫폼을 추가합니다.</p>
+                                <button class="primary-btn" onclick="showAddPlatformModal()" style="width:100%;">+ 새 플랫폼 추가</button>
+                                <div id="platform-dynamic-list" class="v5-wholesale-grid" style="margin-top:10px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- T7 전용 모달 (캡슐화 준수) -->
+            <div id="add-platform-modal" class="v5-modal-overlay" style="display:none;">
+                <div class="v5-modal-content" style="max-width:400px; background:var(--surface1); border:1px solid var(--accent);">
+                    <div class="panel-header">🚀 새 플랫폼 추가</div>
+                    <div class="panel-body">
+                        <div class="form-group"><label>플랫폼 이름</label><input type="text" id="new-plat-name"></div>
+                        <div style="display:flex; gap:10px; margin-top:20px;">
+                            <button class="primary-btn" onclick="addPlatform()">확인</button>
+                            <button class="secondary-btn" onclick="hideAddPlatformModal()">취소</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div class="toast" id="toast"></div>
+<!-- 확장 Apps Script (설정 탭 "코드 복사" 시 이 내용이 복사됨) -->
+<script id="embedded-apps-script" type="text/plain">
+const SHEET_ID = '1qs-dbzR-necdSo-MfV-hoIgAb65aaBflQVVg6JkFHFA';
+const SHEET_NAME = '상품목록';
+const SHEET_SALES = '판매기록';
+const SHEET_ACCOUNTING = '매입매출';
+const SHEET_MONTHLY = '월별통계';
+const CONFIG_SHEET = '설정';
+
+function doGet(e) { return handleRequest(e); }
+function doPost(e) { return handleRequest(e); }
+
+function handleRequest(e) {
+  const response = ContentService.createTextOutput();
+  response.setMimeType(ContentService.MimeType.JSON);
+  try {
+    const action = e.parameter.action || (e.postData ? JSON.parse(e.postData.contents).action : null);
+    const body = e.postData ? JSON.parse(e.postData.contents) : {};
+    const params = e.parameter || {};
+    if (action === 'getProducts') response.setContent(JSON.stringify(getProducts()));
+    else if (action === 'saveProduct') response.setContent(JSON.stringify(saveProduct(body)));
+    else if (action === 'updateProduct') response.setContent(JSON.stringify(updateProduct(body)));
+    else if (action === 'deleteProduct') response.setContent(JSON.stringify(deleteProduct(body.id)));
+    else if (action === 'clearAll') response.setContent(JSON.stringify(clearAll()));
+    else if (action === 'getConfig') response.setContent(JSON.stringify(getConfig()));
+    else if (action === 'saveConfig') response.setContent(JSON.stringify(saveConfig(body)));
+    else if (action === 'saveSalesRecord') response.setContent(JSON.stringify(saveSalesRecord(body)));
+    else if (action === 'saveAccountingRecord') response.setContent(JSON.stringify(saveAccountingRecord(body)));
+    else if (action === 'getSalesRecords') response.setContent(JSON.stringify(getSalesRecords(body.month ? body : params)));
+    else if (action === 'getAccountingRecords') response.setContent(JSON.stringify(getAccountingRecords(body.month ? body : params)));
+    else if (action === 'naverProxy') response.setContent(JSON.stringify(naverApiProxy(body)));
+    else if (action === 'eximRate') response.setContent(JSON.stringify(eximExchangeRate(body)));
+    else if (action === 'domeggookProxy') response.setContent(JSON.stringify(domeggookProxy(body)));
+    else if (action === 'generateMonthlyReport') response.setContent(JSON.stringify(generateMonthlyReport()));
+    else if (action === 'calculateVAT') response.setContent(JSON.stringify(calculateSimplifiedVAT(body.year || new Date().getFullYear())));
+    else if (action === 'tourApiProxy') response.setContent(JSON.stringify(tourApiProxy(body)));
+    else if (action === 'weatherProxy') response.setContent(JSON.stringify(weatherProxy(body)));
+    else if (action === 'customsProxy') response.setContent(JSON.stringify(customsProxy(body)));
+    else if (action === 'kotraProxy') response.setContent(JSON.stringify(kotraProxy(body)));
+    else response.setContent(JSON.stringify({ success: false, error: 'unknown action' }));
+  } catch (err) {
+    response.setContent(JSON.stringify({ success: false, error: err.toString() }));
+  }
+  return response;
+}
+
+function initConfigSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(CONFIG_SHEET);
+    sheet.getRange(1, 1, 1, 2).setValues([['키', '값']]);
+    sheet.getRange(1, 1, 1, 2).setBackground('#1a1a2e').setFontColor('#4ade80').setFontWeight('bold');
+    sheet.appendRow(['email1', '']);
+    sheet.appendRow(['email2', '']);
+  }
+  return sheet;
+}
+
+function getConfig() {
+  const sheet = initConfigSheet();
+  const data = sheet.getDataRange().getValues();
+  const config = {};
+  data.slice(1).forEach(function (row) { if (row[0]) config[row[0]] = row[1]; });
+  return { success: true, config: config };
+}
+
+function saveConfig(data) {
+  const sheet = initConfigSheet();
+  const rows = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (rows[i][0] === 'email1') sheet.getRange(i + 1, 2).setValue(data.email1 || '');
+    if (rows[i][0] === 'email2') sheet.getRange(i + 1, 2).setValue(data.email2 || '');
+  }
+  return { success: true };
+}
+
+var PRODUCT_HEADERS = ['ID', '상품명', '원가', '도매배송비', '마켓배송비', '마켓', '수수료(%)', '판매가', '수수료금액', '순이익', '마진율(%)', '저장일시', '저장자', '카테고리', '경쟁강도', '시중최저가', '시중평균가', '판매결정', '판매시작일', 'AI점수', '사입추천', '사입원가'];
+var PRODUCT_COLS = 22;
+
+function initSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+    sheet.getRange(1, 1, 1, PRODUCT_COLS).setValues([PRODUCT_HEADERS]);
+    sheet.getRange(1, 1, 1, PRODUCT_COLS).setBackground('#1a1a2e').setFontColor('#4ade80').setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function setProductListHeaders() {
+  const sheet = initSheet();
+  var headers = ['카테고리', '경쟁강도', '시중최저가', '시중평균가', '판매결정', '판매시작일'];
+  var range = sheet.getRange(1, 14, 1, headers.length);
+  range.setValues([headers]);
+  range.setBackground('#1a1a2e');
+  range.setFontColor('#4ade80');
+  range.setFontWeight('bold');
+  Logger.log('상품목록 14~19열 헤더 적용 완료.');
+}
+
+function getProducts() {
+  const sheet = initSheet();
+  const last = sheet.getLastRow();
+  if (last <= 1) return { success: true, products: [] };
+  const colCount = Math.max(PRODUCT_COLS, sheet.getLastColumn());
+  const data = sheet.getRange(2, 1, last, colCount).getValues();
+  return {
+    success: true,
+    products: data.filter(function (r) { return r[0] !== ''; }).map(function (r) {
+      return {
+        id: r[0], name: r[1], cost: r[2], supShip: r[3], mktShip: r[4],
+        market: r[5], fee: r[6], salePrice: r[7], feeAmt: r[8],
+        profit: r[9], margin: r[10], savedAt: r[11], savedBy: r[12],
+        category: r[13], competitionLevel: r[14], minMarketPrice: r[15], avgMarketPrice: r[16],
+        sellDecision: r[17], sellStartDate: r[18],
+        aiScore: r[19], recommendWholesale: r[20], estimatedBulkCost: r[21]
+      };
+    })
+  };
+}
+
+function saveProduct(data) {
+  const sheet = initSheet();
+  data.products.forEach(function (p) {
+    const row = [
+      p.id, p.name, p.cost, p.supShip, p.mktShip,
+      p.market, p.fee, p.salePrice, p.feeAmt,
+      p.profit, p.margin, p.savedAt, p.savedBy || '남편',
+      p.category || '', p.competitionLevel || '', p.minMarketPrice || '', p.avgMarketPrice || '',
+      p.sellDecision || 'N', p.sellStartDate || '',
+      p.aiScore || '', p.recommendWholesale || 'N', p.estimatedBulkCost || ''
+    ];
+    sheet.appendRow(row);
+    const rowNum = sheet.getLastRow();
+    const bgColor = p.margin >= 20 ? '#c6efce' : p.margin >= 10 ? '#ffeb9c' : '#ffc7ce';
+    sheet.getRange(rowNum, 1, rowNum, PRODUCT_COLS).setBackground(bgColor).setFontColor('#1a1a1a');
+  });
+  return { success: true };
+}
+
+function updateProduct(data) {
+  const id = data.id;
+  const sheet = initSheet();
+  const last = sheet.getLastRow();
+  if (last <= 1) return { success: false };
+  const colCount = Math.max(PRODUCT_COLS, sheet.getLastColumn());
+  const rows = sheet.getRange(2, 1, last, colCount).getValues();
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(id)) {
+      const rowIdx = i + 2;
+      if (data.sellDecision !== undefined) sheet.getRange(rowIdx, 18).setValue(data.sellDecision);
+      if (data.sellStartDate !== undefined) sheet.getRange(rowIdx, 19).setValue(data.sellStartDate);
+      return { success: true };
+    }
+  }
+  return { success: false };
+}
+
+function deleteProduct(id) {
+  const sheet = initSheet();
+  const last = sheet.getLastRow();
+  if (last <= 1) return { success: false };
+  const data = sheet.getRange(2, 1, last, 1).getValues();
+  for (var i = 0; i < data.length; i++) {
+    if (String(data[i][0]) === String(id)) {
+      sheet.deleteRow(i + 2);
+      return { success: true };
+    }
+  }
+  return { success: false };
+}
+
+function clearAll() {
+  const sheet = initSheet();
+  const last = sheet.getLastRow();
+  if (last > 1) sheet.deleteRows(2, last - 1);
+  return { success: true };
+}
+
+function initSalesSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_SALES);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_SALES);
+    sheet.getRange(1, 1, 1, 11).setValues([['날짜', '상품ID', '상품명', '마켓', '판매수량', '판매가', '매출', '원가합계', '순이익', '마진율', '저장자']]);
+    sheet.getRange(1, 1, 1, 11).setBackground('#1a1a2e').setFontColor('#4ade80').setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function saveSalesRecord(data) {
+  const sheet = initSalesSheet();
+  const r = data.record || data;
+  const revenue = (r.salePrice || 0) * (r.quantity || 0);
+  const costSum = r.costSum || 0;
+  const profit = revenue - costSum - (r.feeAmt || 0);
+  const marginPct = revenue > 0 ? Math.round(profit / revenue * 1000) / 10 : 0;
+  sheet.appendRow([
+    r.date || new Date().toISOString().slice(0, 10),
+    r.productId || '', r.productName || '', r.market || '',
+    r.quantity || 0, r.salePrice || 0, revenue, costSum, profit, marginPct,
+    r.savedBy || '남편'
+  ]);
+  return { success: true };
+}
+
+function getSalesRecords(params) {
+  const sheet = initSalesSheet();
+  const last = sheet.getLastRow();
+  if (last <= 1) return { success: true, records: [] };
+  const data = sheet.getRange(2, 1, last, 11).getValues();
+  let list = data.map(function (r) {
+    return { date: r[0], productId: r[1], productName: r[2], market: r[3], quantity: r[4], salePrice: r[5], revenue: r[6], costSum: r[7], profit: r[8], margin: r[9], savedBy: r[10] };
+  });
+  if (params && params.month) {
+    const yyyymm = String(params.month);
+    list = list.filter(function (r) { return String(r.date).slice(0, 7) === yyyymm; });
+  }
+  return { success: true, records: list };
+}
+
+function initAccountingSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_ACCOUNTING);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_ACCOUNTING);
+    sheet.getRange(1, 1, 1, 9).setValues([['날짜', '구분', '거래처', '품목', '공급가액', '세액', '합계', '증빙유형', '메모']]);
+    sheet.getRange(1, 1, 1, 9).setBackground('#1a1a2e').setFontColor('#4ade80').setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function saveAccountingRecord(data) {
+  const sheet = initAccountingSheet();
+  const r = data.record || data;
+  const amount = r.amount || r.공급가액 || 0;
+  const tax = r.tax || r.세액 || 0;
+  const total = amount + tax;
+  sheet.appendRow([
+    r.date || new Date().toISOString().slice(0, 10),
+    r.type || r.구분 || '매출',
+    r.partner || r.거래처 || '',
+    r.item || r.품목 || '',
+    amount, tax, total,
+    r.evidenceType || r.증빙유형 || '기타',
+    r.memo || r.메모 || ''
+  ]);
+  return { success: true };
+}
+
+function getAccountingRecords(params) {
+  const sheet = initAccountingSheet();
+  const last = sheet.getLastRow();
+  if (last <= 1) return { success: true, records: [] };
+  const data = sheet.getRange(2, 1, last, 9).getValues();
+  let list = data.map(function (r) {
+    return { date: r[0], type: r[1], partner: r[2], item: r[3], amount: r[4], tax: r[5], total: r[6], evidenceType: r[7], memo: r[8] };
+  });
+  if (params && params.month) {
+    const yyyymm = String(params.month);
+    list = list.filter(function (r) { return String(r.date).slice(0, 7) === yyyymm; });
+  }
+  if (params && params.type) list = list.filter(function (r) { return r.type === params.type; });
+  return { success: true, records: list };
+}
+
+function initMonthlySheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_MONTHLY);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_MONTHLY);
+    sheet.getRange(1, 1, 1, 8).setValues([['연월', '총매출', '총매입', '순이익', '마진율', '카테고리별매출', '마켓별매출', '부가세예상']]);
+    sheet.getRange(1, 1, 1, 8).setBackground('#1a1a2e').setFontColor('#4ade80').setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function generateMonthlyReport() {
+  const salesSheet = initSalesSheet();
+  const acctSheet = initAccountingSheet();
+  const monthlySheet = initMonthlySheet();
+  const thisMonth = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM');
+
+  // 판매기록 집계
+  const salesData = salesSheet.getLastRow() > 1 ? salesSheet.getRange(2, 1, salesSheet.getLastRow()-1, 11).getValues() : [];
+  let totalRevenue = 0, totalProfit = 0, marketMap = {}, catMap = {};
+  salesData.forEach(function(r) {
+    if (String(r[0]).slice(0,7) !== thisMonth) return;
+    totalRevenue += Number(r[6]) || 0;
+    totalProfit += Number(r[8]) || 0;
+    const mkt = r[3] || '기타';
+    marketMap[mkt] = (marketMap[mkt] || 0) + (Number(r[6]) || 0);
+  });
+
+  // 매입매출 집계
+  const acctData = acctSheet.getLastRow() > 1 ? acctSheet.getRange(2, 1, acctSheet.getLastRow()-1, 9).getValues() : [];
+  let totalPurchase = 0;
+  acctData.forEach(function(r) {
+    if (String(r[0]).slice(0,7) !== thisMonth) return;
+    if (r[1] === '매입') totalPurchase += Number(r[4]) || 0;
+  });
+
+  const marginPct = totalRevenue > 0 ? Math.round(totalProfit / totalRevenue * 1000) / 10 : 0;
+  const vatEstimate = Math.round(totalRevenue * 0.1);
+
+  monthlySheet.appendRow([thisMonth, totalRevenue, totalPurchase, totalProfit, marginPct,
+    JSON.stringify(catMap), JSON.stringify(marketMap), vatEstimate]);
+  return { success: true, month: thisMonth, revenue: totalRevenue, profit: totalProfit, margin: marginPct };
+}
+
+function calculateSimplifiedVAT(year) {
+  const salesSheet = initSalesSheet();
+  if (salesSheet.getLastRow() <= 1) return { success: true, year: year, vat: 0, message: '데이터 없음' };
+  const data = salesSheet.getRange(2, 1, salesSheet.getLastRow()-1, 11).getValues();
+  const yearStr = String(year);
+  let totalRevenue = 0;
+  data.forEach(function(r) { if (String(r[0]).slice(0,4) === yearStr) totalRevenue += Number(r[6]) || 0; });
+  // 간이과세: 매출 × 업종별 부가가치율(10~40%) × 10% — 소매업 기준 15%
+  const simplifiedVAT = Math.round(totalRevenue * 0.15 * 0.1);
+  const generalVAT = Math.round(totalRevenue * 0.1);
+  return { success: true, year: year, totalRevenue: totalRevenue, simplifiedVAT: simplifiedVAT, generalVAT: generalVAT };
+}
+
+function organizeGoogleDrive() {
+  return { success: true, message: 'organizeGoogleDrive placeholder' };
+}
+
+<script src="js/proxy-api.js"></script>
+
+      </main>
+    </div>
+  </div>
+</div>
+<!-- end content-area & app-wrapper -->
+
+<div id="pin-modal" class="v5-modal-overlay" style="display:none; z-index:9999;">
+    <div class="v5-modal-content" style="max-width:320px; text-align:center; padding:30px; border:2px solid var(--accent); background:var(--surface1); box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+        <div style="font-size:40px; margin-bottom:16px;">🛡️</div>
+        <h2 style="font-size:20px; font-weight:900; color:var(--text); margin-bottom:10px;">Security Lock</h2>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">시스템 액세스를 위해<br>4자리 마스터 PIN을 입력하십시오.</p>
+        <div style="display:flex; justify-content:center; gap:10px; margin-bottom:24px;">
+            <input type="password" id="pin-digit" maxlength="4" placeholder="••••" style="width:140px; height:50px; font-size:28px; text-align:center; letter-spacing:10px; border:2px solid var(--border); border-radius:12px; background:var(--surface2); color:var(--accent);" autofocus onkeydown="if(event.key==='Enter') verifyPin()">
+        </div>
+        <div id="pin-error-msg" style="display:none; color:#ef4444; font-size:12px; font-weight:700; margin-bottom:12px; min-height:18px;"></div>
+        <button type="button" class="primary-btn" onclick="verifyPin()" style="width:100%; height:50px; font-weight:bold; font-size:16px; border-radius:12px; cursor:pointer;">🔒 시스템 해제</button>
+        <div style="margin-top:20px; font-size:11px; color:var(--text-muted);">
+            PIN을 잊으셨나요? <span style="color:var(--danger); cursor:pointer; text-decoration:underline;" onclick="signOut()">로그아웃 후 초기화</span>
+        </div>
+    </div>
+</div>
+
+<!-- ★ SystemLogger 터미널 콘솔 UI -->
+<div id="sys-console">
+  <div id="sys-console-header">
+    <span>🖥️ SYSTEM CONSOLE</span>
+    <div>
+      <button onclick="SystemLogger.clear()" title="초기화">🗑️</button>
+      <button onclick="SystemLogger.toggle()" title="닫기">✕</button>
+    </div>
+  </div>
+  <div id="sys-console-body"></div>
+</div>
+<button id="sys-console-fab" onclick="SystemLogger.toggle()" title="시스템 콘솔">
+  🖥️
+  <span id="sys-console-badge">0</span>
+</button>
+<script>
+// ★ 앱 초기화 시 AppConfig 로드
+(async function() {
+  if (window.AppConfig && typeof AppConfig.load === 'function') {
+    await AppConfig.load();
+  }
+})();
+</script>
+</body>
+</html>

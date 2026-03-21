@@ -1,0 +1,110 @@
+<!-- ═══════════════════════════════════════════════════
+     T1: 소싱 인텔리전스 — HTML 템플릿
+     파일: 이 내용을 index.html의 <div class="page" id="page-sourcing"> 안에 삽입
+     ═══════════════════════════════════════════════════ -->
+
+<div style="max-width:1400px;margin:0 auto;padding:16px 0;">
+
+    <!-- 모드 전환 -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <span style="font-size:15px;font-weight:700;">🔍 소싱 인텔리전스</span>
+        <div style="margin-left:auto;display:flex;gap:4px;">
+            <button class="t1-mode-btn active" data-mode="single" onclick="t1SetMode('single')">단건 검색</button>
+            <button class="t1-mode-btn" data-mode="bulk" onclick="t1SetMode('bulk')">대량 소싱</button>
+        </div>
+    </div>
+
+    <!-- ═══ 단건 검색 모드 ═══ -->
+    <div id="t1-single-panel">
+        <!-- 검색 바 -->
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input type="text" id="t1-search-input" placeholder="키워드 또는 상품명 입력..." style="flex:1;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(22,25,32,0.85);color:#e2e8f0;font-size:13px;">
+            <button onclick="t1SingleSearch()" style="padding:10px 20px;border-radius:8px;border:none;background:#10b981;color:#0d0f14;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">분석 시작</button>
+        </div>
+
+        <!-- 연관 키워드 칩 -->
+        <div id="t1-related-chips" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+
+        <!-- 검색 결과 영역 -->
+        <div id="t1-single-results" style="display:none;"></div>
+    </div>
+
+    <!-- ═══ 대량 소싱 모드 ═══ -->
+    <div id="t1-bulk-panel" style="display:none;">
+
+        <!-- STEP 1: 데이터 가져오기 -->
+        <div class="t1-section-header"><span>STEP 1: 상품 데이터 가져오기</span><span class="t1-badge-new">NEW</span></div>
+        <div class="t1-src-grid">
+            <div class="t1-src-card active" onclick="t1SetBulkSource('excel',this)">
+                <div class="t1-src-icon">📄</div>
+                <div class="t1-src-name">엑셀 업로드</div>
+                <div class="t1-src-desc">도매꾹/도매매 CSV/XLSX</div>
+            </div>
+            <div class="t1-src-card" onclick="t1SetBulkSource('url',this)">
+                <div class="t1-src-icon">🔗</div>
+                <div class="t1-src-name">URL 붙여넣기</div>
+                <div class="t1-src-desc">상품 페이지 자동 추출</div>
+            </div>
+            <div class="t1-src-card" onclick="t1SetBulkSource('api',this)">
+                <div class="t1-src-icon">🔍</div>
+                <div class="t1-src-name">API 검색</div>
+                <div class="t1-src-desc">도매꾹 API 직접</div>
+            </div>
+            <div class="t1-src-card" onclick="t1SetBulkSource('sheet',this)">
+                <div class="t1-src-icon">📊</div>
+                <div class="t1-src-name">구글 시트</div>
+                <div class="t1-src-desc">내 상품 목록 가져오기</div>
+            </div>
+        </div>
+
+        <!-- 엑셀 드롭존 -->
+        <div id="t1-drop-zone" class="t1-drop-zone" id="t1-bulk-excel">
+            <div class="t1-drop-icon">📂</div>
+            <div class="t1-drop-main">엑셀/CSV 파일을 여기에 드래그 앤 드롭</div>
+            <div class="t1-drop-sub">지원: .xlsx .xls .csv — 도매꾹, 도매매, 온채널 형식 자동 감지</div>
+        </div>
+
+        <!-- URL 입력 -->
+        <div id="t1-bulk-url" style="display:none;">
+            <div style="display:flex;gap:6px;margin-bottom:10px;">
+                <input type="text" id="t1-url-input" placeholder="https://domeggook.com/main/item/itemView.php?aid=..." style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(22,25,32,0.85);color:#e2e8f0;font-size:12px;">
+                <button onclick="t1ExtractFromUrl()" style="padding:8px 16px;border-radius:8px;border:none;background:#f59e0b;color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer;">추출</button>
+            </div>
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:10px;">💡 도매꾹, 도매매, 온채널 등 등록된 도매사이트 URL을 붙여넣으면 상품 정보를 자동 추출합니다. 여러 개를 연속으로 추가할 수 있습니다.</div>
+        </div>
+
+        <!-- API 검색 -->
+        <div id="t1-bulk-api" style="display:none;">
+            <div style="display:flex;gap:6px;margin-bottom:10px;">
+                <input type="text" id="t1-api-search-input" placeholder="도매꾹에서 검색할 키워드..." style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(22,25,32,0.85);color:#e2e8f0;font-size:12px;">
+                <button onclick="t1ApiSearch()" style="padding:8px 16px;border-radius:8px;border:none;background:#10b981;color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer;">검색</button>
+            </div>
+        </div>
+
+        <!-- 구글시트 가져오기 -->
+        <div id="t1-bulk-sheet" style="display:none;">
+            <button onclick="t1ImportFromGoogleSheet()" style="width:100%;padding:12px;border-radius:8px;border:1px solid #10b981;background:rgba(16,185,129,0.06);color:#10b981;font-size:13px;font-weight:600;cursor:pointer;">📊 구글 시트에서 상품 목록 불러오기</button>
+            <div style="font-size:10px;color:#94a3b8;margin-top:6px;">구글 시트의 '상품목록' 탭에서 상품명과 원가를 불러옵니다.</div>
+        </div>
+
+        <!-- 분석 결과 영역 -->
+        <div id="t1-bulk-results" style="display:none;margin-top:14px;"></div>
+
+    </div>
+</div>
+
+<script>
+// 대량 소싱 소스 전환
+function t1SetBulkSource(source, btn) {
+    document.querySelectorAll('.t1-src-card').forEach(c => c.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    ['excel','url','api','sheet'].forEach(s => {
+        const el = document.getElementById('t1-bulk-' + s);
+        if (el) el.style.display = (s === source) ? 'block' : 'none';
+    });
+    // 드롭존은 id가 다르므로 별도 처리
+    const dropZone = document.getElementById('t1-drop-zone');
+    if (dropZone) dropZone.style.display = (source === 'excel') ? 'block' : 'none';
+}
+window.t1SetBulkSource = t1SetBulkSource;
+</script>

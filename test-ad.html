@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script src="js/core/fetch-gas.js"></script>
+<script>
+window.onload = async () => {
+  const result = await window.fetchGas('testAdApi', { keyword: '미니선풍기' });
+  console.log(result);
+  document.body.innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+}
+</script>
+</body>
+</html>

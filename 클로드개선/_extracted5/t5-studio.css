@@ -1,0 +1,88 @@
+/* ═══════════════════════════════════════
+   T5 마케팅 스튜디오 — 프리미엄 UI
+   ═══════════════════════════════════════ */
+
+.t5-layout { display:grid;grid-template-columns:380px 1fr;gap:20px; }
+@media (max-width:1000px) { .t5-layout { grid-template-columns:1fr; } }
+
+.t5-panel { background:rgba(22,25,32,0.7);backdrop-filter:blur(4px);border-radius:12px;border:1px solid rgba(255,255,255,0.06);padding:16px;margin-bottom:16px;transition:border-color 0.2s; }
+.t5-panel:hover { border-color:rgba(255,255,255,0.1); }
+.t5-panel-header { font-size:14px;font-weight:600;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:space-between; }
+.t5-section-header { font-size:12px;font-weight:600;margin:10px 0 8px;display:flex;align-items:center;gap:6px; }
+.t5-count { font-size:10px;color:var(--text-muted,#64748b);font-weight:400; }
+.t5-badge-new { display:inline-block;padding:1px 6px;border-radius:4px;font-size:8px;font-weight:700;background:rgba(139,92,246,0.2);color:#a78bfa;margin-left:4px; }
+
+/* ── 템플릿 선택 그리드 ── */
+.t5-tpl-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px; }
+@media (max-width:500px) { .t5-tpl-grid { grid-template-columns:repeat(2,1fr); } }
+.t5-tpl-btn { padding:8px 4px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text-muted,#94a3b8);cursor:pointer;text-align:center;font-size:10px;transition:all 0.15s;line-height:1.4; }
+.t5-tpl-btn.active { border-color:var(--accent,#10b981);background:rgba(16,185,129,0.06);color:#e2e8f0;font-weight:600; }
+.t5-tpl-btn:hover:not(.active) { background:rgba(255,255,255,0.03);color:#e2e8f0; }
+.t5-tpl-icon { font-size:18px;display:block;margin-bottom:2px; }
+.t5-tpl-name { font-weight:600;font-size:10px; }
+.t5-tpl-desc { font-size:8px;color:var(--text-muted);margin-top:1px; }
+
+/* ── 마켓 규격 선택 ── */
+.t5-mkt-row { display:flex;gap:4px;margin-bottom:12px; }
+.t5-mkt-btn { flex:1;padding:6px 4px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text-muted);cursor:pointer;text-align:center;font-size:9px;transition:all 0.15s; }
+.t5-mkt-btn.active { border-color:var(--accent,#10b981);background:rgba(16,185,129,0.06);color:#e2e8f0;font-weight:600; }
+.t5-mkt-btn:hover:not(.active) { background:rgba(255,255,255,0.03); }
+
+/* ── 입력 폼 ── */
+.t5-form-group { margin-bottom:10px; }
+.t5-form-group label { display:block;font-size:11px;font-weight:600;color:var(--text-muted,#94a3b8);margin-bottom:4px; }
+.t5-form-group input, .t5-form-group textarea { width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:12px;transition:border-color 0.2s,box-shadow 0.2s;font-family:inherit; }
+.t5-form-group input:focus, .t5-form-group textarea:focus { border-color:rgba(16,185,129,0.4);box-shadow:0 0 0 3px rgba(16,185,129,0.08);outline:none; }
+.t5-form-group textarea { min-height:70px;resize:vertical;line-height:1.6; }
+
+/* ── SEO 키워드 표시 ── */
+.t5-seo-bar { padding:6px 10px;border-radius:6px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.12);font-size:10px;color:#60a5fa;margin-bottom:10px;min-height:24px; }
+
+/* ── 액션 버튼 ── */
+.t5-btn-primary { width:100%;padding:12px;border-radius:10px;border:none;background:var(--accent,#10b981);color:#0d0f14;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;margin-bottom:8px; }
+.t5-btn-primary:hover { transform:translateY(-1px);box-shadow:0 6px 20px rgba(16,185,129,0.3); }
+.t5-btn-primary:active { transform:translateY(0); }
+
+.t5-btn-row { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px; }
+.t5-btn-secondary { padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:transparent;color:#e2e8f0;font-size:11px;font-weight:500;cursor:pointer;transition:all 0.15s; }
+.t5-btn-secondary:hover { background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.15); }
+
+/* ── 미리보기 패널 ── */
+.t5-preview-wrap { border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);background:#fff; }
+.t5-preview-header { display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(22,25,32,0.9);border-bottom:1px solid rgba(255,255,255,0.06); }
+.t5-preview-header span { font-size:12px;font-weight:500;color:#e2e8f0; }
+.t5-char-count { font-size:10px;color:var(--text-muted); }
+#t5-preview-frame { width:100%;min-height:600px;border:none;background:#fff;display:block;margin:0 auto;transition:max-width 0.3s; }
+
+/* ── 대기열 ── */
+.t5-queue-list { display:flex;flex-direction:column;gap:4px; }
+.t5-queue-row { display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;background:rgba(255,255,255,0.02);font-size:11px;border:1px solid rgba(255,255,255,0.04);transition:background 0.15s; }
+.t5-queue-row:hover { background:rgba(255,255,255,0.04); }
+.t5-queue-status { font-size:14px;flex-shrink:0; }
+.t5-queue-name { flex:1;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.t5-queue-price { min-width:60px;text-align:right;color:var(--text-muted);font-size:10px; }
+.t5-mini-btn { padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:9px;color:var(--accent,#10b981);cursor:pointer;background:transparent;transition:all 0.15s; }
+.t5-mini-btn:hover { background:rgba(16,185,129,0.08); }
+
+.t5-batch-btn { width:100%;padding:10px;border-radius:8px;border:none;background:rgba(167,139,250,0.12);color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:8px;transition:all 0.15s; }
+.t5-batch-btn:hover { background:rgba(167,139,250,0.2); }
+.t5-btn-dl { background:rgba(245,158,11,0.12);color:#f59e0b; }
+.t5-btn-dl:hover { background:rgba(245,158,11,0.2); }
+
+/* ── SEO 상품명 결과 ── */
+.t5-kw-summary { display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px; }
+.t5-kw-chip { display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.12);font-size:10px; }
+.t5-kw-chip-name { font-weight:600;color:#e2e8f0; }
+.t5-kw-chip-vol { color:#60a5fa;font-weight:500; }
+.t5-title-suggestions { display:flex;flex-direction:column;gap:4px; }
+.t5-title-row { display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);cursor:pointer;transition:all 0.15s; }
+.t5-title-row:hover { background:rgba(59,130,246,0.06);border-color:rgba(59,130,246,0.15); }
+.t5-title-num { width:22px;height:22px;border-radius:6px;background:rgba(59,130,246,0.15);color:#60a5fa;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0; }
+.t5-title-text { flex:1;font-size:12px;line-height:1.4; }
+.t5-title-chars { font-size:10px;min-width:30px;text-align:right;font-weight:500; }
+.t5-info-msg { padding:10px;font-size:11px;color:var(--text-muted,#94a3b8);background:rgba(255,255,255,0.02);border-radius:6px;line-height:1.5; }
+.t5-loading-inline { text-align:center;padding:16px;color:var(--text-muted);font-size:12px; }
+
+/* ── 배너 미리보기 ── */
+#t5-banner-preview img { transition:opacity 0.3s;animation:t5FadeIn 0.4s ease; }
+@keyframes t5FadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }

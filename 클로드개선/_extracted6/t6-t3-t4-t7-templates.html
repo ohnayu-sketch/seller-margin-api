@@ -1,0 +1,101 @@
+<!-- ═══ T6: OMS 주문관제 ═══ -->
+<!-- page-oms 안에 삽입 -->
+<div style="max-width:1400px;margin:0 auto;padding:16px 0;">
+    <div id="t6-dashboard"></div>
+    <div class="t6-panel">
+        <div class="t6-panel-header">
+            <span>📦 주문 등록</span>
+            <button class="t6-mini-btn" onclick="t6FetchOrders()" style="font-size:10px;padding:4px 10px;">🔄 마켓 주문 수집</button>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:6px;align-items:end;">
+            <div><label style="font-size:10px;color:#94a3b8">상품명</label><input type="text" id="t6-order-product" placeholder="상품명" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:11px;"></div>
+            <div><label style="font-size:10px;color:#94a3b8">판매가</label><input type="number" id="t6-order-price" placeholder="0" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:11px;"></div>
+            <div><label style="font-size:10px;color:#94a3b8">마켓</label><select id="t6-order-market" style="width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:10px;"><option value="smartstore">스마트스토어</option><option value="coupang">쿠팡</option><option value="gmarket">G마켓</option><option value="11st">11번가</option><option value="tmon">티몬</option></select></div>
+            <div><label style="font-size:10px;color:#94a3b8">구매자</label><input type="text" id="t6-order-buyer" placeholder="구매자명" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:11px;"></div>
+            <div><label style="font-size:10px;color:#94a3b8">수량</label><input type="number" id="t6-order-qty" value="1" min="1" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:11px;"></div>
+            <button onclick="t6AddOrder()" style="padding:6px 14px;border-radius:8px;border:none;background:#10b981;color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">등록</button>
+        </div>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap;">
+        <button class="t6-mini-btn t6-filter-status active" data-val="all" onclick="t6SetFilter('status','all')">전체</button>
+        <button class="t6-mini-btn t6-filter-status" data-val="new" onclick="t6SetFilter('status','new')">🆕 신규</button>
+        <button class="t6-mini-btn t6-filter-status" data-val="shipped" onclick="t6SetFilter('status','shipped')">🚚 배송</button>
+        <button class="t6-mini-btn t6-filter-status" data-val="completed" onclick="t6SetFilter('status','completed')">✔️ 완료</button>
+        <div style="margin-left:auto;display:flex;gap:4px;">
+            <button class="t6-mini-btn t6-filter-date active" data-val="today" onclick="t6SetFilter('date','today')">오늘</button>
+            <button class="t6-mini-btn t6-filter-date" data-val="week" onclick="t6SetFilter('date','week')">이번주</button>
+            <button class="t6-mini-btn t6-filter-date" data-val="all" onclick="t6SetFilter('date','all')">전체</button>
+        </div>
+    </div>
+    <div id="t6-order-list"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+
+<!-- ═══ T3: 통합 자산 장부 ═══ -->
+<!-- page-ledger 안에 삽입 -->
+<div style="max-width:1200px;margin:0 auto;padding:16px 0;">
+    <div id="t3-dashboard"></div>
+    <div class="t3-panel">
+        <div class="t3-panel-header">📝 거래 기록</div>
+        <div style="display:grid;grid-template-columns:100px 1fr 120px 2fr auto;gap:6px;align-items:end;">
+            <div><label style="font-size:10px;color:#94a3b8">유형</label><select id="t3-entry-type" onchange="t3UpdateCategories()" style="width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:10px;"><option value="income">💰 수입</option><option value="expense">💸 지출</option><option value="transfer">🔄 이체</option></select></div>
+            <div><label style="font-size:10px;color:#94a3b8">분류</label><select id="t3-entry-category" style="width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:10px;"><option>마켓 정산</option></select></div>
+            <div><label style="font-size:10px;color:#94a3b8">금액 (원)</label><input type="number" id="t3-entry-amount" placeholder="0" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:11px;"></div>
+            <div><label style="font-size:10px;color:#94a3b8">설명</label><input type="text" id="t3-entry-desc" placeholder="거래 내용" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:11px;"></div>
+            <button onclick="t3AddEntry()" style="padding:6px 14px;border-radius:8px;border:none;background:#10b981;color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer;">기록</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+            <input type="date" id="t3-entry-date" style="padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:10px;">
+            <select id="t3-entry-market" style="padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:10px;"><option value="">마켓 선택 (선택)</option><option value="smartstore">스마트스토어</option><option value="coupang">쿠팡</option><option value="gmarket">G마켓</option><option value="11st">11번가</option></select>
+        </div>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:10px;">
+        <button class="t3-mini-btn t3-filter-type active" data-val="all" onclick="t3SetFilter('type','all')">전체</button>
+        <button class="t3-mini-btn t3-filter-type" data-val="income" onclick="t3SetFilter('type','income')">💰 수입</button>
+        <button class="t3-mini-btn t3-filter-type" data-val="expense" onclick="t3SetFilter('type','expense')">💸 지출</button>
+        <button class="t3-mini-btn t3-filter-type" data-val="transfer" onclick="t3SetFilter('type','transfer')">🔄 이체</button>
+    </div>
+    <div id="t3-entry-list"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+
+<!-- ═══ T4: 재무 인사이트 ═══ -->
+<!-- page-finance 안에 삽입 -->
+<div style="max-width:1200px;margin:0 auto;padding:16px 0;">
+    <div id="t4-summary"></div>
+    <div style="display:flex;gap:4px;margin-bottom:12px;">
+        <button class="t4-period-btn" data-months="3" onclick="t4SetPeriod(3)">3개월</button>
+        <button class="t4-period-btn active" data-months="6" onclick="t4SetPeriod(6)">6개월</button>
+        <button class="t4-period-btn" data-months="12" onclick="t4SetPeriod(12)">12개월</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="t4-chart-wrap"><div class="t4-chart-title">📊 월별 매출/지출/순이익</div><canvas id="t4-revenue-chart" class="t4-chart-canvas"></canvas></div>
+        <div class="t4-chart-wrap"><div class="t4-chart-title">🏪 마켓별 매출 비중</div><canvas id="t4-market-chart" class="t4-chart-canvas"></canvas></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+        <div class="t4-chart-wrap"><div class="t4-chart-title">💸 카테고리별 지출</div><canvas id="t4-expense-chart" class="t4-chart-canvas"></canvas></div>
+        <div class="t4-chart-wrap"><div class="t4-chart-title">📈 ROI 추이</div><div id="t4-roi-panel"></div></div>
+    </div>
+    <div class="t4-chart-wrap" style="margin-top:16px;">
+        <div class="t4-chart-title">🎯 손익분기점 계산기</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+            <div><label style="font-size:10px;color:#94a3b8">월 목표 순이익 (원)</label><input type="number" id="t4-bep-target" placeholder="1000000" oninput="t4RenderBreakEven()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:12px;"></div>
+            <div><label style="font-size:10px;color:#94a3b8">건당 평균 순이익 (원)</label><input type="number" id="t4-bep-avg-profit" placeholder="5000" oninput="t4RenderBreakEven()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(30,34,48,0.8);color:#e2e8f0;font-size:12px;"></div>
+        </div>
+        <div id="t4-bep-result"></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+
+<!-- ═══ T7: 시스템 설정 ═══ -->
+<!-- page-setup 안에 삽입 -->
+<div style="max-width:800px;margin:0 auto;padding:16px 0;">
+    <div class="t7-panel"><div class="t7-panel-header">🔗 Apps Script 연결</div><div id="t7-script-section"></div></div>
+    <div class="t7-panel"><div class="t7-panel-header">🏪 도매사이트 관리</div><div id="t7-wholesale-section"></div></div>
+    <div class="t7-panel"><div class="t7-panel-header">🏷️ 마켓 API 키</div><div id="t7-market-keys"></div></div>
+    <div class="t7-panel"><div class="t7-panel-header">🤖 AI 서비스 키</div><div id="t7-ai-keys"></div></div>
+    <div class="t7-panel"><div class="t7-panel-header">💾 데이터 관리</div><div id="t7-data-section"></div></div>
+</div>

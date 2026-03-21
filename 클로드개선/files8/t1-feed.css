@@ -1,0 +1,101 @@
+/* ═══════════════════════════════════════
+   T1 트렌드 피드 CSS
+   파일: css/t1-feed.css
+   ═══════════════════════════════════════ */
+
+/* ─── 좌측 패널 내부 ─── */
+.lp-title{font-size:9px;color:#475569;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px;padding:0 2px}
+.lp-search{display:flex;gap:5px;margin-bottom:8px}
+.lp-search-input{flex:1;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(22,25,32,0.85);color:#e2e8f0;font-size:12px;outline:none}
+.lp-search-input:focus{border-color:rgba(16,185,129,0.4)}
+.lp-search-btn{padding:10px 14px;border-radius:8px;border:none;background:#10b981;color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer}
+
+/* KPI 미니 */
+.kpi-mini{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px}
+.kpi-m{background:rgba(22,25,32,0.6);border-radius:7px;padding:7px;text-align:center}
+.kpi-m-num{font-size:15px;font-weight:800}
+.kpi-m-label{font-size:8px;color:#64748b}
+
+/* 순위 리스트 */
+.rank-list{display:flex;flex-direction:column;gap:2px;max-height:220px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.08) transparent;margin-bottom:8px}
+.rank-item{display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:5px;cursor:pointer;font-size:10px;transition:background .1s}
+.rank-item:hover{background:rgba(22,25,32,0.7)}
+.rank-num{width:18px;height:18px;border-radius:4px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#64748b;flex-shrink:0}
+.rank-num.top{background:rgba(16,185,129,0.15);color:#10b981}
+.rank-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e2e8f0}
+.rank-val{font-size:9px;font-weight:700;color:#10b981}
+.rank-sub{font-size:8px;color:#475569}
+
+/* 모바일 가로 스크롤 키워드 */
+.hot-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;scrollbar-width:none}
+.hot-scroll::-webkit-scrollbar{display:none}
+.hot-pill{flex-shrink:0;display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:20px;background:rgba(22,25,32,0.6);border:1px solid rgba(255,255,255,0.06);font-size:10px;cursor:pointer}
+.hot-pill:hover{border-color:rgba(16,185,129,0.3)}
+
+/* ─── 우측 메인: 상품 그리드 ─── */
+.feed-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.feed-header h3{font-size:13px;font-weight:700}
+.feed-count{font-size:9px;color:#64748b}
+.feed-filter-bar{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.feed-filter{padding:3px 9px;border-radius:5px;border:1px solid rgba(255,255,255,0.05);background:transparent;color:#64748b;font-size:9px;cursor:pointer;font-weight:600}
+.feed-filter.active{background:rgba(16,185,129,0.08);color:#10b981;border-color:rgba(16,185,129,0.15)}
+.feed-sort{padding:3px 7px;border-radius:5px;border:1px solid rgba(255,255,255,0.05);background:rgba(22,25,32,0.6);color:#94a3b8;font-size:9px;margin-left:auto}
+
+.feed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:8px;margin-bottom:12px}
+
+/* ─── 상품 카드 ─── */
+.pc{background:rgba(22,25,32,0.6);border:1px solid rgba(255,255,255,0.05);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+.pc:hover{border-color:rgba(16,185,129,0.25)}
+.pc-img{height:96px;background:rgba(30,34,48,0.5);display:flex;align-items:center;justify-content:center;color:#475569;font-size:9px;position:relative;overflow:hidden}
+.pc-img img{width:100%;height:100%;object-fit:cover}
+.pc-badge{position:absolute;top:5px;left:5px;padding:2px 7px;border-radius:4px;font-size:8px;font-weight:700}
+.pc-badge-go{background:rgba(16,185,129,0.2);color:#34d399}
+.pc-badge-watch{background:rgba(245,158,11,0.2);color:#fbbf24}
+.pc-badge-skip{background:rgba(239,68,68,0.2);color:#ef4444}
+.pc-trend{position:absolute;top:5px;right:5px;padding:2px 6px;border-radius:4px;font-size:8px;font-weight:600;background:rgba(0,0,0,0.55);color:#fbbf24}
+.pc-body{padding:8px 9px 9px}
+.pc-name{font-size:11px;font-weight:700;line-height:1.35;height:30px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:7px;color:#f1f5f9}
+
+/* 카드 내 테이블 */
+.pc-table{width:100%;border-collapse:collapse;margin-bottom:0}
+.pc-table td{padding:2px 0;font-size:10px;vertical-align:middle}
+.pc-table .pc-lb{color:#64748b;width:48px}
+.pc-table .pc-vl{text-align:right;font-weight:700;color:#e2e8f0}
+.pc-table .pc-ws{color:#f59e0b;cursor:pointer;text-decoration:none}
+.pc-table .pc-ws:hover{text-decoration:underline}
+.pc-table .pc-src{display:block;font-size:8px;font-weight:500;color:#94a3b8;text-align:right}
+.pc-table .pc-mg{font-size:14px;font-weight:900}
+.pc-table .pc-mg-g{color:#34d399}
+.pc-table .pc-mg-y{color:#fbbf24}
+.pc-table .pc-mg-r{color:#ef4444}
+.pc-table .pc-sub{font-weight:500;color:#94a3b8}
+.pc-table .pc-divider td{padding:0;height:1px}
+.pc-table .pc-divider td div{height:1px;background:rgba(255,255,255,0.04);margin:3px 0}
+.pc-match{font-size:8px;padding:1px 5px;border-radius:3px;font-weight:600}
+.pc-match-high{background:rgba(16,185,129,0.1);color:#34d399}
+.pc-match-medium{background:rgba(245,158,11,0.1);color:#fbbf24}
+.pc-match-low{background:rgba(239,68,68,0.1);color:#ef4444}
+
+/* 카드 하단 액션 */
+.pc-actions{display:flex;align-items:center;gap:6px;padding-top:7px;margin-top:7px;border-top:1px solid rgba(255,255,255,0.04)}
+.pc-btn-add{display:flex;align-items:center;gap:4px;padding:6px 14px;border-radius:6px;border:none;background:#10b981;color:#0d0f14;font-size:10px;font-weight:800;cursor:pointer;transition:background .12s;line-height:1}
+.pc-btn-add:hover{background:#34d399}
+.pc-btn-add svg{width:13px;height:13px;fill:none;stroke:#0d0f14;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.pc-btn-add.muted{background:#1e293b;color:#64748b}
+.pc-btn-add.muted svg{stroke:#64748b}
+.pc-icon-btns{display:flex;gap:2px;margin-left:auto}
+.pc-icon-btn{width:28px;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;position:relative}
+.pc-icon-btn:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12)}
+.pc-icon-btn svg{width:14px;height:14px;fill:none;stroke:#94a3b8;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.pc-icon-btn:hover svg{stroke:#e2e8f0}
+.pc-icon-btn .tip{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);padding:3px 8px;border-radius:4px;background:#1e293b;color:#e2e8f0;font-size:8px;white-space:nowrap;margin-bottom:4px;border:1px solid rgba(255,255,255,0.1);z-index:10}
+.pc-icon-btn:hover .tip{display:block}
+
+/* ─── 페이지네이션 ─── */
+.feed-pagination{display:flex;align-items:center;justify-content:center;gap:3px;margin-top:4px}
+.pg-btn{width:28px;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,0.05);background:transparent;color:#64748b;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pg-btn.active{background:rgba(16,185,129,0.12);color:#10b981;font-weight:700}
+.pg-btn:hover:not(.active){color:#e2e8f0}
+
+/* ─── 대량 소싱 아코디언 (좌측 패널 하단) ─── */
+.bulk-accordion{margin-top:8px}

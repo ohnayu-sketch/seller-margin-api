@@ -1,0 +1,46 @@
+# 셀러 대시보드 V5: T1 소싱 인텔리전스 모듈 명세서
+
+현재 셀러 대시보드의 **T1: 소싱 인텔리전스 (Sourcing Intelligence)** 탭은 프론트엔드 HTML 상에서 여러 가지 기능 모듈로 세분화되어 있습니다. 특정 기능의 오작동 시 AI에게 **"어느 모듈(혹은 함수명)"**이 문제인지 짚어주시면 빠르고 정확한 디버깅이 가능합니다.
+
+---
+
+## 1. 🔍 통합 소싱 분석 엔진 (상단 중앙 검색)
+* **DOM 영역**: `#v5-search-input` (검색창), `#btn-market-search` (분석 시작 버튼)
+* **JS 함수**: [runIntegratedV5Search()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#5828-6060) / [callApi()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#282-304) / [fetchGas()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#5859-5865)
+* **설명**: 메인 두뇌 역할입니다. 사용자가 검색어를 입력하면 브라우저가 Google Apps Script(가스)의 프록시 서버([fetchGas](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#5859-5865))를 호출해 **네이버(B2C) 쇼핑 검색**과 **도매꾹(B2B) 검색** 데이터를 동시에 가져와 병합합니다.
+* **주요 확인 지표**: 
+    * "B2C 데이터 수신"이라는 로그가 찍히는지 여부.
+    * `AI SCORE`, 시장 강도, 예상 마진율 스코어가 나오는 'V3 monopolyIndex' 분석 결과물 렌더링.
+
+## 2. ⚡ AI 소싱 기회 레이더 (좌측 사이드바 상단)
+* **DOM 영역**: `#v5-radar-list`
+* **JS 함수**: [updateOpportunityRadar()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#5760-5827)
+* **설명**: 사용자가 검색어를 치기 전에 먼저 "지금 뜨고 있는 상품/키워드"를 추천해 주는 레이더 역할을 합니다. 현재는 API 서버 문제로, 브라우저 로컬 데이터(Fallback 배열)를 반복해서 뿌려주도록 임시 수리되어 있습니다.
+* **주요 확인 지표**: 메뉴 좌측 상단에 5개의 카드는 정상적으로 뜨는지, 카드를 클릭했을 때 해당 키워드로 중앙의 **통합 소싱 분석 엔진**이 자동으로 팽글팽글 도는지 확인합니다.
+
+## 3. 📉 마진 필터 설정 (좌측 사이드바 중단)
+* **DOM 영역**: `#margin-filter-slider` (슬라이더), `#margin-filter-val` (퍼센트 수치)
+* **설명**: 최소 마진율(%)을 지정하는 슬라이더입니다. 사용자가 15%, 20% 등으로 변경할 경우, 로컬 스토리지에 `minMarginFilter` 값으로 임시 저장되어, **통합 소싱 분석 엔진**이 상품 리스트를 화면에 그릴 때 이 마진을 못 넘기는 도매 상품을 자동으로 "필터링에서 탈락" 시킵니다.
+
+## 4. 🗂️ 카테고리 소싱 (좌측 사이드바 하단)
+* **JS 함수**: [_getSeasonKeyword()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/config.js#662-671)
+* **설명**: 대분류별(예: 생활/건강, 패션/의류) 세부 트리 메뉴입니다. 현재는 테스트를 위해 특정 카테고리를 클릭하면 [_getSeasonKeyword()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/config.js#662-671) 함수에서 하드코딩된 단어(예: 3월의 경우 "운동화")를 반환하여 검색창에 띄워줍니다. 향후 네이버 카테고리 트렌드 API와 직결될 예정입니다.
+
+## 5. 📦 마켓플레이스 벤치마크 (중앙 결과물 렌더링)
+* **DOM 영역**: `#v5-market-grid` (혹은 `#mp-product-cards-min` 등)
+* **JS 함수**: [renderSourcingCards()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#2515-2575) / `formatCurrency(fmt)`
+* **설명**: **통합 소싱 분석 엔진**이 데이터를 다 구해오면, 화면에 상품 이미지, 이름, 가격, 도매가, 마진을 예쁘게 카드뷰(스켈레톤 UI 포함)로 그려주는 "렌더링 전담 모듈"입니다.
+* **주요 확인 지표**: 검색은 완료되었는데 화면에 아무것도 안 뜨거나 빙글빙글 스피너만 돈다면 이 렌더링 함수의 오류일 확률이 높습니다.
+
+## 6. 💡 유휴 상품 마진 시뮬레이터 (하단)
+* **설명**: 도매꾹 등에서 발굴한 상품을 단일 판매하지 않고 여러 개를 '세트(묶음)'로 팔 때 배송비가 얼마나 절약되고 마진이 얼마나 극대화되는지 계산하는 수동 계산 모듈입니다.
+
+---
+
+### 🚨 트러블슈팅 가이드 (작동이 안 될 때 AI에게 질문하는 법)
+
+제미나이(시스템 에이전트)에게 질문하실 때 다음과 같이 지칭하시면 완벽하게 소통하실 수 있습니다.
+
+* **사례 1 (검색 자체가 안됨)**: "제미나이, **통합 소싱 분석 엔진**에서 '캠핑의자'를 넣고 버튼을 눌렀는데 도매꾹 데이터를 못 가져우고 빙글빙글 돌기만 해. [runIntegratedV5Search](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#5828-6060)나 Apps Script 프록시가 깨진건지 확인해줘."
+* **사례 2 (화면이 이상함)**: "검색은 된 것 같은데 **마켓플레이스 벤치마크 렌더링** 쪽에서 이미지가 안 뜨거나 `undefined`가 나와. [renderSourcingCards()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#2515-2575) 쪽을 고쳐줘."
+* **사례 3 (필터가 안 먹힘)**: "**마진 필터 설정**을 30%로 올렸는데 여전히 마진율 5%짜리 쓰레기 상품이 중앙 결과에 떠. 필터(Track A 로직) 쪽 수정해줘."

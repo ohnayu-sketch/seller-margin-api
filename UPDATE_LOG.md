@@ -1,5 +1,77 @@
 # Seller Dashboard UPDATE LOG
 
+## [2026-03-22] 탭 상태 유지(Persistence) 및 SEO 상품명 생성기(T5) GAS 연동 완료
+
+### 🚀 Phase 1: 탭 상태 유지(Persistence) 복구
+- **문제**: 새로고침 시 항상 기본 탭(T1)으로 초기화되어 작업 컨텍스트가 날아가는 현상 발생.
+- **해결**: `js/main-logic.js`에 `localStorage`를 활용하여 마지막 활성화된 탭 ID 저장 및 초기 로드 시 복원 로직 추가.
+- 관련 워크플로우 문서 추가 (`.agents/workflows/tab-persistence.md`).
+
+### 🚀 Phase 2: T5 Studio 연동 및 SEO 상품명 생성기 완성
+- **모듈 통합**: V6 대시보드 구조에 맞춰 누락되었던 `js/t5-studio.js` 스크립트를 명시적으로 로드하도록 복원 (`seller-dashboard-v6.html`).
+- **백엔드 프록시 (GAS)**: 네이버 검색광고 API를 안전하게 호출하기 위해 `apps-script-code.gs`에 `naverSearchAdProxy` 추가 (HMAC-SHA256 시그니처 + 캐싱 도입).
+- **프록시 오타 교정**: `t5-studio.js`의 호출 엔드포인트를 `naverAdProxy`에서 `naverSearchAd`로 수정.
+- **배포**: `$ npm run clasp deploy` (자동화 워크플로우 적용) 실행 및 정상 통신 `✅ 서버 연결 성공!` E2E 검증 완료.
+
+### 📋 클리퍼(Clipper) 2-Track 분리 기획안 도출
+- Track A (시장 리서치 & 위닝 아이템 발굴): 네이버 데이터랩 등 분석 지표 위주.
+- Track B (도매 데이터 수집 & 정제): 도매 플랫폼 상품의 가격/이미지/정보 수집 위주.
+- `implementation_plan.md` 내에 구조 템플릿 제안 완료.
+
+---## [2026-03-11] T1 소싱 인텔리전스 V5.5 마스터 블루프린트 전면 개편 + 시스템 설정 보존 버그 수정 + Mock 전면 삭제
+
+### 근거 지시서
+
+CEO Phase 2: Peripheral Sync / V5.5 Master Blueprint Update
+
+### 변경 요약
+
+#### 🔧 T1 메인 검색 엔진 전면 교체 (`runIntegratedV5Search`)
+
+- `Promise.all` → `Promise.allSettled` 전환 (API 1개 실패 시에도 정상 작동)
+- **2단 Data Cleansing**: 지재권(브랜드 금지어) 필터 + 도배성 중복 이미지 제거
+- **Price Tiering**: 30분위/70분위 기준 저가 방어형/중가 표준형/고가 프리미엄 자동 분류
+- **빈집 보호 로직**: B2B 공급 데이터 없는 아이템은 마진 필터 우회하여 무조건 노출
+- 네이버 검색 결과 display: 30 → 50으로 확대
+
+#### ⚡ 4대 소싱 진입점 중앙 엔진 직결
+
+- `triggerUnifiedSearch()` 배관 함수 신규 생성 → 4개 모듈이 중앙 엔진으로 통합
+- `searchByCategory()` → `triggerUnifiedSearch` 호출로 변경
+- `updateOpportunityRadar()` → `triggerUnifiedSearch` 연동
+- `briefSearch()` → try-catch 방어 + 중앙 엔진 직결
+- 검색 입력창 Enter 키 바인딩 추가
+
+#### 🛡️ 시스템 설정 보존 버그 수정 (`safeClearCache`)
+
+- **문제**: Rescue UI의 "캐시 초기화" 버튼이 `localStorage.clear()` → API 키 전부 삭제
+- **해결**: `safeClearCache()` 함수 신규 생성 — 16개 보호 키 패턴을 백업 후 복원
+- 보호 대상: API 키(6종), 프록시 URL, 마진 필터, 비밀번호, 시스템 설정, 브랜드 금지어, 허용 이메일
+
+#### 🔒 DOM Null Reference 방어
+
+- `recalcMargin()` 함수에 `if (!document.getElementById('costPrice')) return;` Safe Guard 추가
+
+### 변경 파일
+
+- `seller-dashboard-v5.html`: 메인 엔진 교체, 4대 트리거 연동, safeClearCache 추가, Safe Guard
+- `js/main-logic.js`: triggerUnifiedSearch, searchByCategory, recalcMargin, updateOpportunityRadar 동기화
+
+### 롤백 방법
+
+- Git: `git checkout HEAD~1 -- seller-dashboard-v5.html js/main-logic.js`
+- 백업: `_archive_legacy/v5_backups/` 내 최신 백업으로 교체
+
+### 변경 금지 위반 여부
+
+- ✅ CLIENT_ID: 미접촉
+- ✅ 다크 테마 CSS: 미접촉
+- ✅ SCRIPT_URL: 미접촉 (기존 fetchGas 패턴 유지)
+- ✅ MARKET_INFO: 미접촉
+- ✅ calcForMarket: 미접촉
+- ✅ localStorage 키: 기존 키 변경 없음 (safeClearCache는 보호만 추가)
+
+---
 ## [2026-03-07] 렌더링 마비 사태 긴급 핫픽스 및 V6.0 레이아웃 통폐합 (Phase 12 후속 조치)
 
 ### 🚨 트러블슈팅 - 탭 이동 전체 먹통/빈 화면 이슈 (UI 무결성 붕괴 복구)
@@ -40,3 +112,67 @@
 데이터 기반의 의사결정(T1), 강력한 인벤토리 통제(T2), 투명한 재무 가시성(T4), 그리고 철저한 보안 통제(T7)가 통합된 V6.0 아키텍처 수술을 성공적으로 종료함.
 
 **배포 상태:** GitHub 동기화 및 V6.0 정식 릴리즈 완료.
+
+---
+
+## [2026-03-10] 장기 로드맵 Phase 1~4 구현 + 시스템 대정비
+
+### 🚀 Phase 1: 통합 공급처 DB
+- `js/supplier-db.js` (140줄) 신규 생성
+- 5개 소스 (도매꾹/도매토피아/1688/알리익스프레스/타오바오) 비교 검색
+- 12개 데모 상품 + 환율 변환 + 비교 테이블 + T2 시뮬레이터 연동
+- T1 소싱 탭에 검색 패널 UI 삽입
+
+### 🚀 Phase 2: 마켓 등록 파이프라인
+- `js/market-register.js` (155줄) 신규 생성
+- 등록 대기열 + 3개 마켓 (스마트/쿠팡/11번가) 수수료 시뮬레이션
+- EventBus `PRODUCT_SOURCED` 이벤트 연동
+- T6 OMS에 등록 파이프라인 패널 삽입
+
+### 🚀 Phase 3: AI 에이전트 MVP
+- `js/ai-agent.js` (130줄) 신규 생성
+- 플로팅 🤖 채팅 위젯 (우하단 고정)
+- 로컬 규칙 기반 응답 + Gemini API 연동 (키 있으면)
+- 컨텍스트 인식 (현재 탭, 대기열 상태)
+
+### 🚀 Phase 4: 직거래처 CRM DB
+- `js/crm-db.js` (110줄) 신규 생성
+- 거래처 등록/검색/삭제 + 3개 데모 거래처
+- 거래 이력 (총 주문/금액/최근일) 표시
+- T3 장부에 직거래처 관리 패널 삽입
+
+### 🛠️ CSS/레이아웃 수정
+- `.page` max-width: 1200px → **1400px** 전 탭 통일
+- T5/T6 인라인 1200px → 1400px, T7 960px → 1400px
+- `.tabs` sticky: `top:0` → `top:56px` (header 아래 고정) + `backdrop-filter:blur(12px)`
+- `z-index: 99` → `100` (탭 가림 방지)
+
+### 🛠️ Script 로드 수정
+- `<script>` 태그 중첩 버그 수정 (인라인 안에 외부 src 배치 → 분리)
+- 4개 외부 JS (`supplier-db`, `market-register`, `ai-agent`, `crm-db`) body 끝에 정상 로드
+
+### 📋 문서 정비
+- `task.md.resolved`: 2개 대화 이력 완전 통합 (핫픽스 7건 + Phase 1~4 + 미완료)
+- `system_architecture.md.resolved`: 파이프라인 흐름도 + 모듈 + 파일 구조 갱신
+- `ANTI_PATTERNS.md`: 금액 쉼표 규칙(#7) + script 중첩 금지(#8) 추가
+- `.agent/` + `.agents/` 워크플로우 폴더 → `.agents/workflows/`로 통합
+- `/anti-pattern-check` 워크플로우 신규 생성
+
+### 🛠️ [2026-03-10 추가] T1 소싱 인텔리전스 점검 + 탭 UI/금액 포맷 수정
+- **Script 태그 수정:** `seller-dashboard-v5.html` L7 Chart.js CDN `<script src>` 태그 닫힘 누락 → 분리 수정
+- **T1 전체 점검:** 10개 모듈 브라우저 점검 완료 (시즌타이밍/인사이트허브/기회레이더/검색엔진/HTS스크리너 등)
+- **Sticky 탭 수정 (`css/main.css`):**
+  - `header` 배경 `var(--surface)` → `var(--bg)` (불투명) + `backdrop-filter: blur(12px)`
+  - `.tabs` `top: 0` → `top: 56px` (header 높이 보정) + 불투명 배경
+- **금액 쉼표 포맷 (`config.js`):** `CurrencyFormat` 유틸리티 추가 — 17개 금액 input 실시간 쉼표(1,000) 적용
+- **쉼표-safe 파싱 (`js/main-logic.js`):** `getInputs()` 함수에 `_pf` 래퍼로 쉼표 포함 값 안전 파싱
+- **발견 이슈:** 인사이트 허브 초기 로딩 시 "데이터 수집 대기 중" — Apps Script 미배포 시 외부 API 스킵
+
+### 🚀 [2026-03-10 추가] Apps Script 배포 + CacheService 속도 최적화
+- **Apps Script 배포:** `조지아마켓설정` 프로젝트에 V5 통합 코드 배포 (v4→v5)
+  - CRUD 20개 action + 프록시 7개 (네이버/환율/도매꾹/TourAPI/기상청/관세청/KOTRA)
+  - 스크립트 속성에 5개 API 키 등록 확인 (`NAVER_CLIENT_ID/SECRET`, `EXIM_KEY`, `DOMEGGOOK_KEY`, `DATA_GO_KR_KEY`)
+- **CacheService 캐싱 적용:** `cachedProxy()` 래퍼 함수 추가 — 7개 프록시 action에 서버측 캐싱
+  - TTL: 네이버/환율 1시간, 도매꾹 30분, TourAPI/관세청/KOTRA 24시간, 기상청 12시간
+  - 캐시 키: action + body MD5 해시 기반 (동일 요청 식별)
+- **localStorage API 키 복원:** 20개 항목 브라우저에 일괄 복원

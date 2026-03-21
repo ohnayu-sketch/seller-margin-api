@@ -1,0 +1,409 @@
+# 🏗️ Seller Dashboard V5 — 시스템 아키텍처 총정리
+
+> 각 탭의 기능, 탭 간 연결관계, 데이터 흐름, DB 구조, 파일 저장 경로를 정리한 운영 가이드
+
+---
+
+## 1. 전체 파이프라인 흐름
+
+```mermaid
+graph LR
+  T1["T1: 소싱 인텔리전스"] -->|confirmSourcing| T2["T2: 재고/사입 관제"]
+  T1 -->|SupplierDB.search| SDB["통합 공급처 DB"]
+  SDB -->|sendToSimulator| T2
+  T2 -->|saveProduct| T3["T3: 통합 자산 장부"]
+  T3 -->|fetchLedgerData| T4["T4: 재무 인사이트"]
+  T3 -->|CrmDB| CRM["직거래처 CRM"]
+  T1 -->|브랜드 이미지 생성| T5["T5: 마케팅 스튜디오"]
+  T2 -->|MarketRegister| T6["T6: OMS 초광역 관제"]
+  T7["T7: 시스템 설정"] -->|API 키/환율/수수료| ALL["모든 탭"]
+  AI["🤖 AI Agent"] -->|컨텍스트 인식| ALL
+```
+
+---
+
+## 2. 탭별 기능 상세
+
+### T1: 소싱 인텔리전스 (`page-sourcing`, L8317~)
+
+| 모듈 | 기능 | 트리거/입력 | 출력/결과 |
+|------|------|------------|----------|
+| 🚀 시즌별 소싱 타이밍 | 12개월 가로 타임라인 + 오늘의 브리핑 | 패널 자동 렌더링, 국내/해외 탭 전환 | 행사 클릭 → 검색창에 키워드 자동 입력, 분석 엔진 자동 실행 |
+| ⭐ 소싱 인사이트 허브 | **4칸 카드** (날씨/축제/트렌드/기념일) | `SourcingIntel.generateInsights()` | 태그 클릭 → 검색 자동 연동 + 추천 점수 표시 |
+| 📊 AI 소싱 성과 | 총 상품수/평균 마진/최고 이익/전환율 | Apps Script에서 실적 데이터 로드 | 4칸 통계 그리드 + TOP5 상품 리스트 |
+| 🔮 AI 소싱 기회 레이더 | **실시간 동적 추천** (날씨+축제+트렌드 융합) | `SourcingIntel._renderDynamicRadar()` | Score + 추천 상품명 + 근거 표시 |
+| 🔍 통합 소싱 분석 엔진 | 키워드/상품명 검색 → 30개 상품 그리드 | **분석 시작** 버튼 클릭 | `runIntegratedV5Search()` → 동시 3개 API 호출 |
+| 📈 HTS 스크리너 | **마진율 3색코딩** + **AI 4축 브레이크다운** | 검색 완료 후 자동 렌더링 | 시장강도/성장성/진입용이/계절성 바 그래프 팝오버 |
+| 📂 카테고리 소싱 | 대분류→중분류→소분류 트리 | 카테고리 노드 클릭 | `searchByCategory()` → 분석 엔진 자동 연동 |
+| 🔗 키워드 확장 | 연관 키워드 칩 표시 | 검색 완료 후 자동 생성 | 칩 클릭 시 재검색 |
+| 📦 상품 카드 | 개별 상품 상세 (가격/마진/브랜드 리스크) | 그리드 항목 클릭 또는 검색 결과 | **🚀 T2** 버튼 → `hybridTransfer()` → **T2로 데이터 전달** |
+| 🏪 통합 공급처 검색 | **5개 소스 비교** (도매꾹/도매토피아/1688/알리/타오바오) | `SupplierDB.search()` | 환율 변환 + MOQ + 배송일 + 마진 비교 → 시뮬레이터 전송 |
+
+#### 인사이트 엔진 데이터 매핑 (config.js)
+| 매핑 | 카테고리 수 | 키워드 수 |
+|------|:---:|:---:|
+| `WEATHER_KEYWORDS` 날씨→상품 | 6종 (폭염/한파/장마/미세먼지/봄/가을) | ~200개 |
+| `FESTIVAL_PRODUCT_MAP` 축제→상품 | 20종 | ~280개 |
+| `MONTHLY_EVENT_PRODUCTS` 월별 기념일 | 12개월 | ~170개 |
+| `LIFESTYLE_PRODUCTS` 라이프스타일 | 8종 | ~110개 |
+| `SITUATION_PRODUCTS` 특수 상황 | 8종 | ~100개 |
+
+> **핵심 연결**: `confirmSourcing(itemId)` → `StandardProductInfo` 생성 → `AppEventBus.emit('PRODUCT_SOURCED')` → T2의 현장 사입 탭에 자동 전달
+
+---
+
+### T2: 재고/사입 관제 (`page-inventory`, L8694~)
+
+| 모듈 | 기능 | 트리거/입력 | 출력/결과 |
+|------|------|------------|----------|
+| 🏪 온라인 위탁 | 위탁 상품 등록/관리 | 직접 입력 또는 T1에서 전달 | `ProductAdapter.fromManualInput()` → 위탁 상품 리스트 |
+| 📸 현장 사입 | 카메라 촬영 → 즉석 마진 대조 | `AppEventBus.on('PRODUCT_SOURCED')` 수신 | 도매가 입력 → 마진율 실시간 계산 |
+| 🌐 해외 직구 | 글로벌 소싱 (1688, 알리바바) | Landed Cost Calculator | 환율/관세/물류비 합산 최종 원가 |
+| 🔗 도매처 연동 | 도매꾹/도매토피아 API 검색 | `searchWholesale(keyword, site)` | `ProductAdapter.fromDomeggook()` → 표준 데이터 변환 |
+| 💾 장부 저장 | 소싱 확정 → Google Sheets 저장 | **저장** 버튼 | [fetch(SCRIPT_URL, { action: 'saveProduct' })](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#398-418) → **T3 장부에 반영** |
+| 🏷️ 거래처 관리 | 거래처 등록/목록 | [saveVendor()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#2873-2909) / [loadVendors()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#3062-3072) | [fetch(SCRIPT_URL, { action: 'getVendors' })](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#398-418) |
+
+> **핵심 연결**: [saveProduct](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#3653-3741) → Google Sheets `상품목록` 시트에 저장 → T3에서 `fetchLedgerData()` 호출 시 자동 로드
+
+---
+
+### T3: 통합 자산 장부 (`page-ledger`, L9079~)
+
+| 모듈 | 기능 | 트리거/입력 | 출력/결과 |
+|------|------|------------|----------|
+| 📋 상품 목록 | 등록된 전체 상품 리스트 | 탭 진입 시 자동 로드 | Google Sheets에서 `fetchLedgerData()` → 테이블 렌더링 |
+| 💰 마진 계산기 | 위탁/사입 마진 시뮬레이션 | 직접 입력 (위탁/직접 구분) | 수수료/택배비/세금 반영 순이익 계산 |
+| 📊 FIFO 원가계산 | 선입선출 기반 재고 단가 산출 | 입고/출고 기록 입력 | 가중평균 원가 + 재고 수량 표시 |
+| 🧾 OCR 증빙 처리 | 영수증/세금계산서 이미지 텍스트 추출 | Google Vision API | [fetch(vision.googleapis.com)](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#398-418) → 텍스트 인식 → 금액 자동 입력 |
+| 🤝 직거래처 CRM | **거래처 등록/검색/이력** | `CrmDB.add()` / `.search()` | 상호/담당자/계좌/거래조건 + 거래 이력 타임라인 |
+
+> **핵심 연결**: T3 데이터 → T4 재무 인사이트에서 Chart.js 시각화
+
+---
+
+### T4: 재무 인사이트 (`page-finance`, L9204~)
+
+| 모듈 | 기능 | 트리거/입력 | 출력/결과 |
+|------|------|------------|----------|
+| 📈 매출/마진 차트 | Chart.js 기반 시각화 | T3 장부 데이터 자동 연동 | 월별 매출/이익/마진율 그래프 |
+| 💵 Miller-Orr 현금흐름 | 적정 현금 보유 수준 시뮬레이션 | 자본/일일 변동/거래비용 입력 | 상한/하한/목표 현금 밴드 시각화 |
+| 🧾 Tax Pivot | 간이/일반 과세자 세액 비교 | 예상 연 매출액 입력 | 세금 절감 효과 시뮬레이션 테이블 |
+| 📅 현금 입금 타임라인 | 마켓별 정산일 자동 계산 | 판매 날짜 기준 | 네이버/쿠팡/11번가 정산 예정일 표시 |
+
+---
+
+### T5: 마케팅 스튜디오 (`page-studio`, L9552~)
+
+| 모듈 | 기능 | 트리거/입력 | 출력/결과 |
+|------|------|------------|----------|
+| 🖼️ 이미지 베이킹 | 상품 썸네일 자동 생성 | 상품 정보 + 템플릿 선택 | Canvas API → 텍스트 오버레이 이미지 생성 |
+| 🎯 SEO 상품명 생성 | 네이버 연관 키워드 기반 최적명 생성 | 네이버 연관 검색어 API | AI + 로컬 알고리즘 조합형 상품명 5종 출력 |
+| 🎬 영상 렌더링 | 상품 홍보 영상 자동 제작 | (백엔드 Python 필요) | MoviePy + Celery 기반 렌더링 (미구현) |
+| 📝 상세페이지 생성 | AI 기반 상세페이지 자동 제작 | (Gemini API 필요) | HTML 기반 상세페이지 출력 (미구현) |
+
+---
+
+### T6: OMS 초광역 관제 (`page-oms`, L9563~)
+
+| 모듈 | 기능 | 트리거/입력 | 출력/결과 |
+|------|------|------------|----------|
+| 📦 주문 관리 | 다채널 주문 통합 관리 | 마켓 API 연동 (미구현) | 주문 리스트 + 상태 관리 |
+| 🚚 배송 추적 | 택배 발송/배송 상태 추적 | 송장번호 입력 | 실시간 배송 상태 표시 |
+| 📊 채널 성과 분석 | 마켓별 판매 성과 비교 | 자동 집계 | 채널별 매출/건수 대시보드 |
+| 🚀 마켓 등록 파이프라인 | **등록 대기열 + 수수료 시뮬레이션** | `MarketRegister.addToQueue()` | 3개 마켓(스마트/쿠팡/11번가) 수수료 비교 + 일괄 등록 시뮬레이션 |
+
+---
+
+### T7: 시스템 설정 (`page-settings`, 복원 필요)
+
+| 모듈 | 기능 | 저장 위치 | 영향 범위 |
+|------|------|----------|----------|
+| 🔗 Apps Script URL | Google Sheets 연동 URL 설정 | `localStorage['script-url']` | T2, T3, T4 (장부 CRUD 전체) |
+| 🔑 API 키 관리 | 네이버/도매꾹/도매토피아/환율 API 키 | `localStorage['api-*']` | T1 (검색), T2 (도매처), T3 (OCR) |
+| 💱 환율 설정 | CNY→KRW 환율 상수 | `localStorage['exchangeRate']` | T1 (글로벌 소싱), T2 (해외 직구) |
+| 📊 마켓 수수료 | 마켓별 판매 수수료율 | `localStorage['marketFees']` | T1, T3 (마진 계산) |
+| 🎯 소싱 성향 | 성향별 알고리즘 가중치 | `localStorage['sourcing-style']` | T1 (AI Score 산출) |
+| 🔐 보안 설정 | PIN/이메일 접근 제어 | `localStorage['master-pin-config']` | 전체 앱 접근 |
+| 📧 허용 이메일 | 접근 권한 이메일 목록 | `localStorage['allowed-emails-config']` | 로그인 제어 |
+
+---
+
+## 3. 데이터 흐름 상세
+
+### 3.1 검색 → 소싱 확정 → 장부 저장 (메인 파이프라인)
+
+```mermaid
+sequenceDiagram
+    participant U as 사용자
+    participant T1 as T1 소싱
+    participant API as 백엔드 API
+    participant T2 as T2 재고관제
+    participant GS as Google Sheets
+    participant T3 as T3 장부
+
+    U->>T1: 키워드 입력 + "분석 시작"
+    T1->>API: /search, /category, /product-stats (동시 3개)
+    API-->>T1: 검색결과 30개 + 카테고리 + 시장통계
+    T1->>T1: AI Score 계산 + 브랜드 필터링
+    T1->>T1: 상품 카드 그리드 렌더링
+    U->>T1: "소싱 확정" 클릭
+    T1->>T2: confirmSourcing() → EventBus('PRODUCT_SOURCED')
+    T2->>T2: StandardProductInfo 생성 + 마진 계산
+    U->>T2: "저장" 클릭
+    T2->>GS: fetch(SCRIPT_URL, {action: 'saveProduct'})
+    GS-->>T2: 저장 완료
+    U->>T3: T3 탭 진입
+    T3->>GS: fetchLedgerData()
+    GS-->>T3: 상품 목록 반환
+```
+
+### 3.2 시즌 브리핑 → 자동 소싱 연동
+
+```mermaid
+sequenceDiagram
+    participant U as 사용자
+    participant BP as 오늘의 브리핑
+    participant SE as 소싱 분석 엔진
+    participant KW as 키워드 확장
+
+    Note over BP: 패널 로드 시 가장 가까운 행사 2개 자동 표시
+    U->>BP: 브리핑 카드 클릭
+    BP->>SE: briefSearch() → v5-search-input에 키워드 입력
+    SE->>SE: runIntegratedV5Search() 자동 실행
+    SE->>KW: 나머지 키워드 → 칩으로 표시
+```
+
+---
+
+## 4. 데이터베이스 & 저장 구조
+
+### 4.1 저장소 유형
+
+| 저장소 | 용도 | 위치 |
+|--------|------|------|
+| **localStorage** | 사용자 설정, API 키, 세션 | 브라우저 내부 |
+| **Google Sheets** | 상품 장부, 거래처, 매출 기록 | Google Drive (Apps Script 연동) |
+| **Backend API** | 검색 캐시, 환율, 시장 데이터 | `seller-margin-api` (Render.com) |
+
+### 4.2 localStorage 키 맵 (총 30+ 키)
+
+| 카테고리 | 키 | 용도 |
+|----------|-----|------|
+| **인증** | `auth-email`, `auth-name`, `isLoggedIn` | 로그인 상태 |
+| **보안** | `master-pin-config`, `pin-{email}` | PIN 잠금 |
+| **API** | `api-backendUrl`, `api-naver-*`, `api-domeggook` | API 키 |
+| **설정** | `exchangeRate`, `marketFees`, `marketFeeRate` | 환율/수수료 |
+| **소싱** | `sourcing-style`, `sourcingConstants` | 알고리즘 가중치 |
+| **상태** | `lastTab`, `lastCalcSubTab`, `calcDraft` | UI 상태 복원 |
+| **연동** | `script-url`, `allowed-emails-config` | Apps Script |
+
+### 4.3 Google Sheets 시트 구조
+
+| 시트명 | 용도 | CRUD 주체 |
+|--------|------|-----------|
+| `상품목록` | 소싱 확정된 전체 상품 | T2 → [saveProduct](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#3653-3741) |
+| `거래처` | 도매처/B2B 거래처 정보 | T2 → [saveVendor](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#2873-2909)/`getVendors` |
+| `매출기록` | 일별 매출/마진 기록 | T3 → `updateDirectRecord` |
+| `월별실적` | 월간 집계 (매출/이익/세금) | T4 → 자동 집계 |
+
+### 4.4 Backend API 엔드포인트
+
+| 엔드포인트 | 기능 | 호출 탭 |
+|-----------|------|---------|
+| `GET /search` | 네이버 쇼핑 검색 (30개) | T1 |
+| `GET /category` | 카테고리 분류 | T1 |
+| `GET /product-stats` | 시장 통계 (가격 분포) | T1 |
+| `GET /related` | 연관 키워드 확장 | T1 |
+| `GET /market-opportunities` | AI 기회 레이더 데이터 | T1 |
+| `GET /wholesale` | 도매꾹/도매토피아 검색 | T2 |
+| `GET /compare` | 가격 비교 (도매 vs 온라인) | T2 |
+| `GET /parse-url` | 상품 URL 파싱 | T2 |
+| `GET /exchange-rate` | 실시간 환율 | T7 → 전체 |
+| `GET /landed-cost` | 글로벌 소싱 원가 계산 | T2 |
+| `POST /ai-sourcing-update` | AI 소싱 데이터 갱신 | T1 |
+| `GET /domeggook/search` | 도매꾹 카테고리 검색 | T1 |
+
+### 4.5 Apps Script 프록시 (20개 action)
+
+| action | 프록시 함수 | 용도 |
+|--------|-----------|------|
+| `saveProduct` / `getProducts` | CRUD | 상품 장부 |
+| `saveSalesRecord` / `getSalesRecords` | CRUD | 매출 기록 |
+| `saveAccountingRecord` / `getAccountingRecords` | CRUD | 회계 기록 |
+| `naverProxy` | naverApiProxy() | 네이버 데이터랩/검색 |
+| `naverSearchAd`| naverSearchAdProxy() | 네이버 검색광고 연관검색어 |
+| `eximRate` | eximExchangeRate() | 수출입은행 환율 |
+| `domeggookProxy` | domeggookProxy() | 도매꾹 상품 |
+| `tourApiProxy` | tourApiProxy() | TourAPI 축제/행사 |
+| `weatherProxy` | weatherProxy() | ⭐ 기상청 중기/단기 예보 |
+| `customsProxy` | customsProxy() | ⭐ 관세청 환율/수출입/세관확인 |
+| `kotraProxy` | kotraProxy() | ⭐ KOTRA 수입규제/해외뉴스/상품DB |
+| `generateMonthlyReport` | — | 월간 리포트 |
+| `calculateVAT` | — | 부가세 계산 |
+
+> 공공데이터포털 9개 API는 **단일 인증키** (`DATA_GO_KR_KEY`) 사용. 만료일: **2028-03-10**
+
+---
+
+## 5. 파일 저장 경로
+
+```text
+h:\내 드라이브\위탁판매\소싱프로그램\
+├── seller-dashboard-v5.html      ← 메인 대시보드 (~11,700줄)
+├── config.js                     ← AppConfig (환율/만료/패턴)
+├── ARCHITECTURE.md               ← 파일구조 + 탭 매핑
+├── ANTI_PATTERNS.md              ← 6개 반복 문제 패턴 차단 규칙
+├── js/
+│   ├── core.js                  ← EventBus, ProductAdapter (171줄)
+│   ├── main-logic.js            ← T1~T7 메인 로직 (7,174줄)
+│   ├── boot.js                  ← 초기화 (84줄)
+│   ├── proxy-api.js             ← V5.5 Proxy API (277줄)
+│   ├── supplier-db.js           ← ⭐ 통합 공급처 (140줄)
+│   ├── market-register.js       ← ⭐ 마켓 등록 (155줄)
+│   ├── ai-agent.js              ← ⭐ AI 채팅 (130줄)
+│   └── crm-db.js                ← ⭐ 거래처 CRM (110줄)
+├── css/
+│   └── main.css                 ← 메인 스타일 (1,574줄)
+├── _archive_legacy\              ← 이전 버전 백업
+│   └── v5_backups\              ← V5 백업 파일들
+└── .agents\workflows\            ← 자동화 워크플로우
+    ├── auto-backup.md           ← 자동 백업
+    ├── dom-nesting-fix.md       ← DOM 중첩 진단
+    └── sync-apps-script.md      ← Apps Script 동기화
+```
+
+---
+
+## 6. 핵심 JavaScript 클래스/함수 연결맵
+
+| 클래스/함수 | 파일 위치 | 역할 | 호출자 |
+|------------|----------|------|--------|
+| [StandardProductInfo](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#113-176) | L113~175 | 표준 상품 데이터 규격 | 모든 소싱 함수 |
+| [ProductAdapter](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#184-222) | L184~221 | 외부 데이터 → 표준 변환 | T2 도매처 연동 |
+| `AppEventBus` | L12~27 | 탭 간 Pub/Sub 통신 | T1↔T2 데이터 전달 |
+| `confirmSourcing()` | L29~68 | T1→T2 소싱 확정 | 상품 카드 "소싱 확정" 버튼 |
+| [runIntegratedV5Search()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#5857-5966) | L5880~ | 통합 검색 엔진 실행 | T1 분석 시작 버튼, 시즌 이벤트 클릭 |
+| [callApi()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#274-299) | L280~298 | 백엔드 API 공통 호출 | 전체 |
+| `searchWholesale()` | L385~ | 도매처 API 검색 | T2 |
+| `fetchSheetData()` | L400~ | Apps Script 데이터 로드 | T3, T4 |
+| [renderSeasonPanel()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#8433-8451) | 내부 | 시즌 타임라인 렌더링 | T1 (DOMContentLoaded) |
+| [renderDailyBrief()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#8415-8424) | 내부 | 오늘의 브리핑 카드 생성 | [renderSeasonPanel()](file:///h:/%EB%82%B4%20%EB%93%9C%EB%9D%BC%EC%9D%B4%EB%B8%8C/%EC%9C%84%ED%83%81%ED%8C%90%EB%A7%A4/%EC%86%8C%EC%8B%B1%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8/seller-dashboard-v5.html#8433-8451) |
+
+---
+
+## 7. 현재 미구현/보류 기능
+
+| 기능 | 상태 | 이유 |
+|------|------|------|
+| 통합 공급처 DB | ✅ 완료 | `js/supplier-db.js` — 5개 소스 비교 |
+| 마켓 등록 파이프라인 | ✅ 완료 | `js/market-register.js` — 수수료 시뮬레이션 |
+| AI 어시스턴트 MVP | ✅ 완료 | `js/ai-agent.js` — 로컬 규칙 + Gemini API |
+| 직거래처 CRM | ✅ 완료 | `js/crm-db.js` — CRUD + 이력 |
+| 마켓 API 실제 연동 | ❌ 미구현 | 사업자 인증 필요 |
+| T5 영상 렌더링 | ❌ 미구현 | Python 백엔드 필요 (MoviePy) |
+| T5 상세페이지 AI 생성 | ❌ 미구현 | Gemini API 연동 필요 |
+| CORS 해결 | ✅ 완료 | Apps Script 프록시 20개 action |
+| 실시간 환율 자동 갱신 | ✅ 완료 | FloatRates 무료 API + 1h 캐시 |
+| 기상청/관세청/KOTRA | ✅ 완료 | Apps Script 프록시 + SourcingIntel |
+| API 만료일 알림 | ✅ 완료 | 관리자 전용, config.js _checkApiExpiry() |
+| 패널 레이아웃 통일 | ✅ 완료 | 전체 탭 max-width: 1400px 통일 |
+
+---
+
+## 8. T1 하드코딩 키워드/데이터 총정리
+
+### 8.1 📅 시즌별 소싱 타이밍 키워드 (`SEASON_DATA`, L8367~)
+
+#### 🇰🇷 국내 위탁 — 18개 이벤트 × 4 키워드 = 72개
+
+| 행사 | 월 | D-day 기준일 | 키워드 |
+|------|-----|------------|--------|
+| 🎍설날 | 1 | 25일 | 설날 선물세트, 한우 선물, 명절 과일, 세배돈 봉투 |
+| 💑발렌타인 | 2 | 14일 | 초콜릿 세트, 커플 아이템, 향수 선물, 장미 꽃다발 |
+| 🌸봄맞이 | 3 | 1일 | 미세먼지 마스크, 공기청정기 필터, 봄 아우터, 꽃씨 키트 |
+| 🏫신학기 | 3 | 2일 | 백팩, 필통, 학용품 세트, 노트북 파우치 |
+| 🍫화이트데이 | 3 | 14일 | 사탕 세트, 캔디 부케, 커플 머그컵, 선물 박스 |
+| 👶어린이날 | 5 | 5일 | 장난감, 보드게임, 키즈 텐트, 어린이 자전거 |
+| 🌹어버이날 | 5 | 8일 | 카네이션, 안마기, 건강식품, 효도 선물 |
+| 🏖️바캉스 | 6 | 15일 | 비치타올, 선크림, 아이스박스, 래쉬가드 |
+| ☔장마 | 7 | 1일 | 제습기, 우산, 레인부츠, 방수백 |
+| 🎵페스티벌 | 8 | 10일 | 이어플러그, 페스티벌 백, 접이식의자, 선글라스 |
+| 🍂추석 | 9 | 15일 | 추석 선물세트, 한과, 송편 만들기, 과일 바구니 |
+| 📚독서의달 | 9 | 1일 | 북스탠드, 독서대, LED 북라이트, 다이어리 |
+| 🎃할로윈 | 10 | 31일 | 코스튬, 호박 장식, 파티용품, 페이스 페인팅 |
+| 🏃체육의날 | 10 | 15일 | 운동화, 요가매트, 폼롤러, 스포츠 물병 |
+| 🛒블프/수능 | 11 | 14일 | 수능 선물, 핫팩, 담요, 블프 세일 |
+| ⛷️겨울준비 | 11 | 1일 | 패딩, 전기장판, 핫초코, 방한용품 |
+| 🎄크리스마스 | 12 | 25일 | 크리스마스 선물세트, 트리 장식, 어드벤트 캘린더, 산타 코스튬 |
+| 🎆연말 | 12 | 31일 | 다이어리, 캘린더, 연말 선물, 송년회 용품 |
+
+#### 🌏 해외 직구 — 12개 이벤트 × 4 키워드 = 48개
+
+| 행사 | 월 | 키워드 |
+|------|-----|--------|
+| 🐉춘절 | 2 | ⚠️ 중국 공장 휴무, 재고 선확보, 발주 마감 주의, 대체 소싱처 |
+| 🌸봄시즌 | 3 | 원예용품, 캠핑 장비, 아웃도어 조명, 미니 선풍기 |
+| 📦618세일 | 5 | 징동 618 할인, 전자기기, 생활용품, 뷰티 도구 |
+| 🏖️여름 | 5 | 휴대용 선풍기, 쿨링 타올, 아이스 텀블러, 방수 파우치 |
+| 🔧프라임데이 | 6 | 해외 직구 비교, 리퍼 전자제품, 프라임 딜, 한정판 |
+| 🎒BTS신학기 | 7 | 가방, 필기구 세트, 데스크 정리함, 텀블러 |
+| 🏮추석준비 | 8 | 고급 차 세트, 도자기, 전통 공예, 한방 세트 |
+| 🍁가을 | 8 | 가습기, 전기담요, 보온 텀블러, 방한 장갑 |
+| 🛒블프 | 10 | 스마트워치 밴드, 이어폰 케이스, 충전기, 전자제품 |
+| ❄️겨울 | 10 | 전기히터 부품, USB 워머, 발열 깔창, 스키 고글 |
+| 🧧광군제 | 11 | 전자기기 악세서리, LED 조명, 실리콘 주방용품, 차량용품 |
+| 🎄크리스마스 | 12 | 크리스마스 장식, LED 트리, 선물 포장재, 산타 소품 |
+
+### 8.2 🗂️ 카테고리 트리 (HTML 하드코딩, L8500~) — 4대분류 14리프
+
+| 대분류 | 중분류 | 리프 키워드 |
+|--------|--------|-----------|
+| 🏠 생활/건강 | 🏕️ 캠핑 | 캠핑의자, 캠핑테이블, 캠핑랜턴 |
+| | 🧘 건강 | 요가매트, 마사지건, 텀블러 |
+| | 🍳 주방 | 에어프라이어, 밀폐용기 |
+| 👜 패션/잡화 | — | 에코백, 스마트워치밴드, 양말 |
+| 🔌 테크/가전 | — | 블루투스 이어폰, 무선 충전기, LED 무드등, 보조배터리 |
+| ⛳ 스포츠/레저 | — | 러닝화깔창, 짐볼, 접이식자전거 |
+
+### 8.3 🔒 브랜드 금지어 (`BRAND_STOPWORDS`, L790~) — 100+개
+
+| 카테고리 | 브랜드 목록 |
+|----------|-----------|
+| 스포츠 | 나이키, 아디다스, 뉴발란스, 푸마, 리복, 언더아머, 컨버스, 반스, 아식스, 미즈노 |
+| 전자 | 애플, 삼성, LG, 소니, 다이슨, 보스, JBL, 필립스, 샤오미, 화웨이 |
+| 명품 | 구찌, 루이비통, 샤넬, 에르메스, 프라다, 디올, 버버리, 발렌시아가, 셀린느, 생로랑 |
+| 식음료 | 스타벅스, 맥도날드, 코카콜라, 펩시, 네슬레, 오레오, 누텔라, 하리보, 킨더 |
+| 캐릭터 | 디즈니, 마블, 포켓몬, 산리오, 헬로키티, 짱구, 뽀로로, 핑크퐁, 카카오프렌즈, 라인프렌즈 |
+| 패션 | 토미힐피거, 랄프로렌, 캘빈클라인, 아르마니, 베르사체, 겐조, 발망 |
+| SPA | 이케아, 무인양품, 자라, 유니클로, H&M, 갭, 올드네이비 |
+| 뷰티 | 설화수, 후, 오휘, 라네즈, 이니스프리, 에뛰드, 맥, 에스티로더, 랑콤, 시슬리 |
+| 게임/IT | 닌텐도, 플레이스테이션, 엑스박스, 로지텍, 레이저, 스틸시리즈, 커세어 |
+| 완구 | 레고, 바비, 핫휠, 트랜스포머, 건담, 반다이, 타미야 |
+| 골프 | 나이키골프, 타이틀리스트, 캘러웨이, 테일러메이드, 핑, 미즈노골프 |
+| 아웃도어 | 노스페이스, 파타고니아, 콜롬비아, 아크테릭스, 몽벨, 블랙야크, 코오롱 |
+| 자동차 | BMW, 벤츠, 아우디, 테슬라, 현대, 기아, 볼보, 포르쉐 |
+
+### 8.4 📊 시즌 피크 키워드 (`seasonalPeaks`, L714~) — 9개
+
+| 키워드 | 피크 월 |
+|--------|--------|
+| 캠핑 | 3, 4, 5, 9, 10 |
+| 우산 | 6, 7 |
+| 에어컨 | 5, 6, 7 |
+| 난로 | 10, 11, 12 |
+| 선풍기 | 5, 6, 7 |
+| 패딩 | 9, 10, 11 |
+| 수영복 | 5, 6, 7 |
+| 핫팩 | 10, 11, 12, 1 |
+| 제습기 | 6, 7, 8 |
+
+### 8.5 🤖 AI Score 알고리즘 가중치 프리셋 (`WEIGHT_PRESETS`, L726~)
+
+| 프리셋 | 시장강도 | 성장성 | 소셜 | ROI | 독점도 |
+|--------|---------|--------|------|-----|--------|
+| 균형형 | 0.30 | 0.25 | 0.15 | 0.15 | 0.15 |
+| 경쟁 회피형 | 0.45 | 0.15 | 0.10 | 0.10 | 0.20 |
+| 트렌드 추종형 | 0.15 | 0.40 | 0.25 | 0.10 | 0.10 |
+| 마진 우선형 | 0.20 | 0.15 | 0.10 | 0.40 | 0.15 |
+
+> **총합**: 시즌 키워드 **120개** + 카테고리 **14개** + 브랜드 금지어 **100+개** + 시즌 피크 **9개** + AI 프리셋 **4종** = 약 **250+ 데이터 포인트** 하드코딩
