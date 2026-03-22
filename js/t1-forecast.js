@@ -113,7 +113,10 @@ window.t1RunForecast = async function() {
 /* ═══════════════════ 캐싱 ═══════════════════ */
 function _saveForecastCache(data) {
   try {
-    const payload = { ts: Date.now(), data: data.map(d => ({ cid: d.cid, name: d.name, icon: d.icon, analysis: d.analysis })) };
+    const payload = { ts: Date.now(), data: data.map(d => ({
+      cid: d.cid, name: d.name, icon: d.icon, analysis: d.analysis,
+      keywords: (d.keywords || []).slice(0, 10) // ★ 키워드도 캐시에 포함
+    })) };
     localStorage.setItem(FORECAST_CACHE_KEY, JSON.stringify(payload));
   } catch (e) { console.warn('[Forecast] 캐시 저장 실패', e); }
 }
@@ -261,13 +264,16 @@ function _renderForecastDashboard() {
     const hotBadge = _getHotBadge(a?.hotScore);
     const sustainBadge = _getSustainBadge(a?.sustainScore);
     const volatilityBar = _getVolatilityBar(a?.volatility || 0);
+    const rowId = `forecast-row-${item.cid}`;
+    const kwCount = (item.keywords || []).length;
 
     html += `
-      <tr style="background:${rowBg}; cursor:pointer; transition:background 0.15s;" onmouseover="this.style.background='rgba(139,92,246,0.06)'" onmouseout="this.style.background='${rowBg}'" onclick="typeof onCatClick==='function'&&onCatClick('${item.cid}','${item.name}',null)">
+      <tr id="${rowId}" style="background:${rowBg}; cursor:pointer; transition:background 0.15s;" onmouseover="this.style.background='rgba(139,92,246,0.06)'" onmouseout="this.style.background='${rowBg}'" onclick="window._toggleForecastKeywords('${item.cid}')">
         <td style="padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.03);">
           <div style="display:flex; align-items:center; gap:8px;">
             <span style="font-size:16px;">${item.icon}</span>
             <span style="font-weight:700; color:#e2e8f0;">${item.name}</span>
+            ${kwCount > 0 ? `<span style="font-size:9px; background:rgba(139,92,246,0.15); color:#a78bfa; padding:1px 6px; border-radius:8px;">${kwCount}키워드 ▼</span>` : ''}
           </div>
         </td>
         <td style="padding:10px 8px; text-align:center; border-bottom:1px solid rgba(255,255,255,0.03);">${hotBadge}</td>
@@ -278,6 +284,11 @@ function _renderForecastDashboard() {
         <td style="padding:10px 8px; text-align:center; border-bottom:1px solid rgba(255,255,255,0.03);">${sustainBadge}</td>
         <td style="padding:10px 8px; border-bottom:1px solid rgba(255,255,255,0.03);">
           <div style="font-size:11px; color:#94a3b8; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a?.futureAdvice || '—'}</div>
+        </td>
+      </tr>
+      <tr id="${rowId}-kw" style="display:none;">
+        <td colspan="6" style="padding:0; border-bottom:1px solid rgba(139,92,246,0.1);">
+          <div id="${rowId}-kw-body" style="background:rgba(30,20,50,0.5); padding:12px 16px;"></div>
         </td>
       </tr>`;
   });
@@ -372,6 +383,91 @@ function _renderTimeline(sorted) {
   html += `</div></div>`;
   return html;
 }
+
+/* ═══════════════════ 키워드 드릴다운 ═══════════════════ */
+
+/**
+ * 히트맵 행 클릭 → 상품 키워드 아코디언 토글
+ */
+window._toggleForecastKeywords = function(cid) {
+  const kwRow = document.getElementById(`forecast-row-${cid}-kw`);
+  if (!kwRow) return;
+
+  const isOpen = kwRow.style.display !== 'none';
+  // 기존 열린 키워드 행 모두 닫기
+  document.querySelectorAll('[id$="-kw"]').forEach(el => { if (el.id.startsWith('forecast-row-')) el.style.display = 'none'; });
+
+  if (isOpen) return; // 이미 열려있으면 닫기만
+
+  kwRow.style.display = '';
+  const body = document.getElementById(`forecast-row-${cid}-kw-body`);
+  if (!body) return;
+
+  const catData = _forecastState.data.find(d => d.cid === cid);
+  const keywords = catData?.keywords || [];
+
+  if (keywords.length === 0) {
+    body.innerHTML = `<div style="font-size:12px; color:#64748b; text-align:center; padding:12px;">🔍 이 카테고리의 상품 키워드 데이터가 없습니다. '새로 분석'을 실행해주세요.</div>`;
+    return;
+  }
+
+  let kwHtml = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <span style="font-size:13px; font-weight:700; color:#a78bfa;">🔎 ${catData.icon} ${catData.name} — 인기 상품 키워드</span>
+      <span style="font-size:10px; color:#64748b;">${keywords.length}개 감지</span>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px;">`;
+
+  keywords.forEach((kw, i) => {
+    const keyword = typeof kw === 'string' ? kw : (kw.keyword || kw.name || '');
+    if (!keyword) return;
+    const rank = i + 1;
+    const isTop3 = rank <= 3;
+    const bgColor = isTop3 ? 'rgba(239,68,68,0.1)' : 'rgba(99,102,241,0.06)';
+    const borderColor = isTop3 ? 'rgba(239,68,68,0.25)' : 'rgba(99,102,241,0.15)';
+    const textColor = isTop3 ? '#fb923c' : '#c4b5fd';
+    const badge = isTop3 ? ['🥇','🥈','🥉'][i] : `#${rank}`;
+    const ratio = kw.ratio || kw.searchVolume || '';
+
+    kwHtml += `
+      <div onclick="window._forecastSearchKeyword('${keyword.replace(/'/g, "\\'")}')"
+        style="display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:10px; 
+               background:${bgColor}; border:1px solid ${borderColor}; cursor:pointer;
+               transition:all 0.2s; flex-shrink:0;"
+        onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(139,92,246,0.15)'"
+        onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <span style="font-size:11px; min-width:20px;">${badge}</span>
+        <span style="font-size:12px; font-weight:700; color:${textColor};">${keyword}</span>
+        ${ratio ? `<span style="font-size:9px; color:#64748b; margin-left:4px;">(${ratio})</span>` : ''}
+        <span style="font-size:9px; color:#6366f1;">🔗소싱</span>
+      </div>`;
+  });
+
+  kwHtml += `</div>
+    <div style="margin-top:10px; font-size:10px; color:#475569;">💡 키워드 클릭 → T1 소싱 검색에 자동 입력됩니다</div>`;
+  body.innerHTML = kwHtml;
+};
+
+/**
+ * 키워드 클릭 → T1 소싱 검색에 자동 입력 + 검색 실행
+ */
+window._forecastSearchKeyword = function(keyword) {
+  const searchInput = document.getElementById('v5-search');
+  if (searchInput) {
+    searchInput.value = keyword;
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  // 미래예측 상황판 닫기
+  _forecastState.visible = false;
+  const panel = document.getElementById('t1-forecast-panel');
+  if (panel) panel.remove();
+  const btn = document.getElementById('t1-forecast-toggle-btn');
+  if (btn) { btn.classList.remove('active'); btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = ''; }
+  // 검색 실행
+  const searchBtn = document.getElementById('v5-search-btn') || document.querySelector('[onclick*="v7Search"]');
+  if (searchBtn) searchBtn.click();
+  if (typeof showToast === 'function') showToast(`🔎 "${keyword}" 소싱 검색 실행`);
+};
 
 /* ═══════════════════ 유틸 ═══════════════════ */
 function _delay(ms) { return new Promise(r => setTimeout(r, ms)); }
