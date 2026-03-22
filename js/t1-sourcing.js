@@ -1001,38 +1001,89 @@ function t1ExportSingleResult() {
     showToast('📊 엑셀 파일이 다운로드됩니다');
 }
 
-// ─── URL 붙여넣기 자동 추출 ───
+// ─── URL 또는 상품번호 붙여넣기 자동 추출 ───
 async function t1ExtractFromUrl() {
     const urlInput = document.getElementById('t1-url-input');
-    const url = (urlInput?.value || '').trim();
-    if (!url) { showToast('URL을 입력하세요'); return; }
+    let url = (urlInput?.value || '').trim();
+    if (!url) { showToast('URL 또는 도매꾹 상품번호를 입력하세요'); return; }
 
-    const site = WholesaleSiteManager.detectSiteFromUrl(url);
-    if (!site) { showToast('⚠️ 등록되지 않은 도매 사이트입니다. T7 설정에서 추가하세요.'); return; }
+    let siteId = '';
+    let siteName = '';
 
-    if (site.type !== 'api' || !WholesaleSiteManager.getApiKey(site.id)) {
-        showToast(`⚠️ ${site.name}은 API 키가 필요합니다. T7 설정을 확인하세요.`); return;
+    // 순수 숫자인 경우 도매꾹 상품번호로 간주
+    if (/^\d+$/.test(url)) {
+        siteId = 'domeggook';
+        siteName = '도매꾹';
+    } else {
+        const site = WholesaleSiteManager.detectSiteFromUrl(url);
+        if (!site) { showToast('⚠️ 등록되지 않은 도매 사이트이거나 잘못된 상품번호입니다. (T7 설정 확인)'); return; }
+        siteId = site.id;
+        siteName = site.name;
     }
 
-    showLoading(true, `${site.name}에서 상품 정보 추출 중...`);
+    if (WholesaleSiteManager.getApiKey && !WholesaleSiteManager.getApiKey(siteId)) {
+        showToast(`⚠️ ${siteName} API 연동이 필요합니다. T7 설정에서 키를 입력해주세요.`); return;
+    }
+
+    showLoading(true, `${siteName}에서 상품 정보 API 추출 중...`);
     try {
-        const result = await fetchGas(site.id + 'UrlParse', { url: url });
-        if (result?.success) {
-            showToast(`✅ ${site.name}: ${result.name} / ${fmt(result.price)}원`);
-            // 대량 목록에 추가
+        // GAS 백엔드의 domeggookProxy (또는 XXUrlParse) 호출.
+        // 기존은 site.id + 'UrlParse'를 썼지만, domeggookProxy({type:'detail', itemNo:...})가 확실하면 그걸 씀.
+        // 여기서는 기존 백엔드 인터페이스 형태를 지원하되, 숫자인 경우엔 파라미터를 다르게 줌.
+        let result;
+        if (siteId === 'domeggook') {
+            const itemNo = /^\d+$/.test(url) ? url : url.match(/[?&]no=(\d+)/)?.[1] || url.match(/\/(\d+)(\?|$)/)?.[1] || url;
+            // v7 GAS (domeggookProxy) 연동
+            result = await fetchGas('domeggookProxy', { type: 'detail', itemNo: itemNo });
+            // 반환값 매핑 (proxy 결과가 item 속성 안에 있거나 최상단에 있음)
+            if (result && !result.error && (result.item || result.name || result.title)) {
+                const itemData = result.item || result;
+                result = {
+                    success: true,
+                    name: itemData.name || itemData.title || itemData.ItemTitle,
+                    price: itemData.price || itemData.ItemPrice || itemData.wholesalePrice,
+                    stock: itemData.ItemQty || '-',
+                    image: itemData.image || itemData.ItemImage || '',
+                };
+            }
+        } else {
+            result = await fetchGas(siteId + 'UrlParse', { url: url });
+        }
+
+        if (result?.success || (result && result.name)) {
+            showToast(`✅ ${siteName}: ${result.name} / ${fmt(result.price)}원`);
+            
+            // 1. 대량 목록에 추가
             T1.bulkItems.push({
                 id: T1.bulkItems.length + 1,
-                name: result.name, wholesalePrice: result.price,
+                name: result.name, wholesalePrice: parseInt(result.price || 0),
                 stock: result.stock || '-', image: result.image || '',
-                source: site.name, marketAvg: 0, margin: 0, signal: 'PENDING',
+                source: siteName, marketAvg: 0, margin: 0, signal: 'PENDING',
                 searches: 0, competition: '-', checked: false, analyzed: false,
             });
             renderBulkImportSummary();
+
+            // 2. 즉시 T2 마진 계산기로 뿌려주기
+            const nameEl = document.getElementById('t2-product-name');
+            const costEl = document.getElementById('t2-cost');
+            const priceEl = document.getElementById('t2-sale-price');
+            
+            if (nameEl) nameEl.value = result.name;
+            if (costEl) costEl.value = parseInt(result.price || 0);
+            if (priceEl) {
+                priceEl.value = 0;
+                priceEl._userEdited = false;
+            }
+            
+            if (typeof t2RecalcMargin === 'function') t2RecalcMargin();
+            if (typeof showTab === 'function') showTab('inventory');
+            
+            showToast('💰 도매꾹 데이터가 마진 계산기에 즉시 연동되었습니다.', 'success');
         } else {
             showToast('추출 실패: ' + (result?.error || '알 수 없는 오류'), false);
         }
     } catch(e) {
-        showToast('URL 추출 오류: ' + e.message, false);
+        showToast('API 연동 오류: ' + e.message, false);
     } finally {
         showLoading(false);
     }
@@ -1080,6 +1131,124 @@ async function t1ImportFromGoogleSheet() {
         }
     } catch(e) {
         showToast('구글시트 연동 오류: ' + e.message, false);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ─── 클리퍼 대량 복사 데이터 가져오기 (Track B 우회 파이프라인) ───
+async function t1ImportFromClipperClipboard() {
+    try {
+        const text = await navigator.clipboard.readText();
+        if (!text) {
+            showToast('클립보드가 비어 있습니다. 클리퍼로 먼저 리스트를 복사하세요.', false);
+            return;
+        }
+
+        let parsed;
+        try {
+            parsed = JSON.parse(text);
+        } catch(e) {
+            showToast('클립보드 데이터 형식이 올바르지 않습니다. (JSON 파싱 실패)', false);
+            return;
+        }
+
+        // 구버전 및 신버전 호환용 검사
+        if (!parsed || (!parsed._type && !parsed.source && !parsed.items)) {
+            showToast('클리퍼 대량 수집 포맷이 아닙니다.', false);
+            return;
+        }
+        
+        const items = parsed.items || (Array.isArray(parsed) ? parsed : []);
+        if (items.length === 0) {
+            showToast('가져올 상품 데이터가 없습니다.', false);
+            return;
+        }
+
+        showLoading(true, '클리퍼 데이터를 파싱 중...');
+        
+        T1.bulkItems = items.map((item, idx) => {
+            return {
+                id: idx + 1,
+                originalId: `clip_${Date.now()}_${idx}`,
+                name: item.name || '',
+                wholesalePrice: parseInt(item.price || 0),
+                stock: '-',
+                image: item.image || item.img || '',
+                source: item.source || parsed.platform || '클립보드 (도매꾹 등)',
+                link: item.link || '',
+                marketAvg: 0, margin: 0, signal: 'PENDING',
+                searches: 0, competition: '-', checked: false, analyzed: false,
+            };
+        });
+
+        showToast(`📋 클리퍼에서 ${T1.bulkItems.length}개 상품 불러옴`);
+        if (typeof renderBulkImportSummary === 'function') renderBulkImportSummary();
+        if (typeof renderBulkFilterBar === 'function') renderBulkFilterBar();
+        if (typeof renderBulkTable === 'function') renderBulkTable();
+
+    } catch(e) {
+        console.error(e);
+        showToast('권한이 없거나 오류가 발생했습니다. (클립보드 허용 필요)', false);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ─── 클리퍼 대량 복사 데이터 가져오기 (Track B 우회 파이프라인) ───
+async function t1ImportFromClipperClipboard() {
+    try {
+        const text = await navigator.clipboard.readText();
+        if (!text) {
+            showToast('클립보드가 비어 있습니다. 클리퍼로 먼저 리스트를 복사하세요.', false);
+            return;
+        }
+
+        let parsed;
+        try {
+            parsed = JSON.parse(text);
+        } catch(e) {
+            showToast('클립보드 데이터 형식이 올바르지 않습니다. (JSON 파싱 실패)', false);
+            return;
+        }
+
+        // 구버전 및 신버전 호환용 검사
+        if (!parsed || (!parsed._type && !parsed.source && !parsed.items)) {
+            showToast('클리퍼 대량 수집 포맷이 아닙니다.', false);
+            return;
+        }
+        
+        const items = parsed.items || (Array.isArray(parsed) ? parsed : []);
+        if (items.length === 0) {
+            showToast('가져올 상품 데이터가 없습니다.', false);
+            return;
+        }
+
+        showLoading(true, '클리퍼 데이터를 파싱 중...');
+        
+        T1.bulkItems = items.map((item, idx) => {
+            return {
+                id: idx + 1,
+                originalId: `clip_${Date.now()}_${idx}`,
+                name: item.name || '',
+                wholesalePrice: parseInt(item.price || 0),
+                stock: '-',
+                image: item.image || item.img || '',
+                source: item.source || parsed.platform || '클립보드 (도매꾹 등)',
+                link: item.link || '',
+                marketAvg: 0, margin: 0, signal: 'PENDING',
+                searches: 0, competition: '-', checked: false, analyzed: false,
+            };
+        });
+
+        showToast(`📋 클리퍼에서 ${T1.bulkItems.length}개 상품 불러옴`);
+        if (typeof renderBulkImportSummary === 'function') renderBulkImportSummary();
+        if (typeof renderBulkFilterBar === 'function') renderBulkFilterBar();
+        if (typeof renderBulkTable === 'function') renderBulkTable();
+
+    } catch(e) {
+        console.error(e);
+        showToast('권한이 없거나 오류가 발생했습니다. (클립보드 허용 필요)', false);
     } finally {
         showLoading(false);
     }
@@ -1338,4 +1507,5 @@ window.t1LoadPriceAlerts = t1LoadPriceAlerts;
 window.t1ShowPriceAlertModal = t1ShowPriceAlertModal;
 window.t1AddSalesBadges = t1AddSalesBadges;
 window.t1LoadTrendAlerts = t1LoadTrendAlerts;
+window.t1ImportFromClipperClipboard = t1ImportFromClipperClipboard; // [NEW] Track B 클리퍼 직결 파이프라인
 window.T1 = T1;

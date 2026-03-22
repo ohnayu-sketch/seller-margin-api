@@ -42,8 +42,28 @@
 /* 맨 우측 장바구니 고정 패널 (신규) */
 .right-cart{width:300px;flex-shrink:0;position:sticky;top:64px;align-self:flex-start;max-height:calc(100vh - 80px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.06) transparent;display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,0.06);padding-left:16px}
 
-@media(max-width:1300px){.right-cart{display:none}}
-@media(max-width:900px){.left-panel{display:none}.wide-layout{display:block}}
+/* 반응형 모바일/확장프로그램 뼈대 수정 */
+@media(max-width:1300px) {
+    /* 1300px 이하부터는 화면이 좁아지므로 고정 폭을 해제하고 위아래 일렬배치 */
+    .wide-layout { flex-direction: column; }
+    .right-cart { 
+        width: 100% !important; 
+        position: static !important; 
+        max-height: none !important; 
+        border-left: none !important; 
+        border-top: 1px solid rgba(255,255,255,0.06); 
+        padding-left: 0 !important; 
+        padding-top: 16px; 
+    }
+}
+@media(max-width:900px){
+    .left-panel{
+        width: 100% !important; 
+        position: static !important; 
+        max-height: none !important; 
+        margin-bottom: 20px;
+    }
+}
 
 /* ─── 마켓별 미니바 차트 ─── */
 .mbar-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:10px}
@@ -74,3 +94,179 @@
 .kanban-btn-primary:hover{background:#34d399}
 .kanban-btn-secondary{padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:transparent;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer}
 .kanban-btn-secondary:hover{color:#e2e8f0;border-color:rgba(255,255,255,0.15)}
+
+/* ═══════════════════════════════════════
+   ★ GLOBAL PANEL SYSTEM (V7 UI Refactoring)
+   기존 탭별로 파편화된 패널들(t1, t2, t5 등)의 UI/UX 규격을 강제로 일원화합니다.
+   ═══════════════════════════════════════ */
+.panel, .t1-panel, .t2-panel, .t5-panel, .t6-panel, .t1-main-panel {
+    background: var(--surface, rgba(22, 25, 32, 0.7)) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.1)) !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    margin-bottom: 16px !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.panel:hover, .t1-panel:hover, .t2-panel:hover, .t5-panel:hover, .t6-panel:hover, .t1-main-panel:hover {
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 패널 헤더 (타이틀 영역) 공통 규격 */
+.panel-header, .t1-panel-header, .t2-panel-header, .t5-panel-header, .t6-panel-header {
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    color: var(--text, #f1f5f9) !important;
+    margin-bottom: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    letter-spacing: -0.3px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding-bottom: 12px !important;
+}
+
+/* ═══════════════════════════════════════
+   ★ GLOBAL FORM & INPUT SYSTEM (V7 UI Refactoring)
+   HTML 내 inline style로 박혀있는 입력 인풋 규격들을 무시하고 통일성 부여
+   ═══════════════════════════════════════ */
+
+/* 폼 그룹 여백 통일 */
+.form-group, .t5-form-group {
+    margin-bottom: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+}
+
+/* 라벨 스타일 일원화 */
+.form-group label, .t5-form-group label, 
+.panel label, .t1-panel label, .t2-panel label, .t5-panel label {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    color: var(--text-muted, #94a3b8) !important;
+    margin-bottom: 6px !important;
+    display: block !important;
+}
+
+/* 입력 필드 (Input, Select, Textarea) */
+.panel input[type="text"], .panel input[type="number"], .panel select, .panel textarea,
+.t2-panel input[type="text"], .t2-panel input[type="number"], .t2-panel select, .t2-panel textarea,
+.t5-panel input[type="text"], .t5-panel input[type="number"], .t5-panel select, .t5-panel textarea {
+    width: 100% !important; /* 강제 100% 꽉 채우기 */
+    padding: 10px 12px !important;
+    border-radius: 10px !important;
+    border: 1px solid var(--border, rgba(255,255,255,0.1)) !important;
+    background: var(--surface2, rgba(30,34,48,0.7)) !important;
+    color: var(--text, #f1f5f9) !important;
+    font-family: inherit !important;
+    font-size: 13px !important;
+    transition: all 0.2s ease !important;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1) !important;
+    box-sizing: border-box !important;
+}
+
+/* 포커스 아웃라인 일원화 */
+.panel input:focus, .panel select:focus, .panel textarea:focus,
+.t2-panel input:focus, .t2-panel select:focus, .t2-panel textarea:focus,
+.t5-panel input:focus, .t5-panel select:focus, .t5-panel textarea:focus {
+    border-color: var(--accent, #10b981) !important;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1), 0 0 0 2px rgba(16,185,129,0.2) !important;
+    outline: none !important;
+}
+
+/* ═══════════════════════════════════════
+   ★ GLOBAL BUTTON SYSTEM (Primary / Secondary)
+   가장 중요한 액션과 보조 버튼의 시각적 계층 오염을 막기 위한 강제 적용 룰
+   ═══════════════════════════════════════ */
+
+/* 주요 액션 버튼 (저장, 제출, 생성 등) */
+.btn-primary, .t5-btn-primary, .t1-analyze-btn, .calc-btn, button[onclick*="Save"], button[onclick*="Generate"] {
+    background: linear-gradient(135deg, var(--accent, #10b981), #059669) !important;
+    color: #000 !important;
+    border: none !important;
+    font-weight: 800 !important;
+    box-shadow: 0 4px 12px rgba(16,185,129,0.3) !important;
+    transition: transform 0.15s, box-shadow 0.15s !important;
+}
+.btn-primary:hover, .t5-btn-primary:hover, .t1-analyze-btn:hover, .calc-btn:hover, button[onclick*="Save"]:hover, button[onclick*="Generate"]:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 16px rgba(16,185,129,0.4) !important;
+    opacity: 1 !important;
+}
+.btn-primary:active, .t5-btn-primary:active, .t1-analyze-btn:active, .calc-btn:active, button[onclick*="Save"]:active, button[onclick*="Generate"]:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 6px rgba(16,185,129,0.2) !important;
+}
+
+/* 보조 액션 버튼 (취소, 복사, 다운로드 등) */
+.btn-secondary, .t5-btn-secondary, .save-btn, button[onclick*="Copy"], button[onclick*="Cancel"], button[onclick*="Close"] {
+    background: transparent !important;
+    color: var(--text-muted, #94a3b8) !important;
+    border: 1px solid var(--border, rgba(255,255,255,0.1)) !important;
+    font-weight: 600 !important;
+    transition: all 0.15s !important;
+}
+.btn-secondary:hover, .t5-btn-secondary:hover, .save-btn:hover, button[onclick*="Copy"]:hover, button[onclick*="Cancel"]:hover, button[onclick*="Close"]:hover {
+    background: rgba(255,255,255,0.05) !important;
+    color: var(--text, #f1f5f9) !important;
+    border-color: rgba(255,255,255,0.3) !important;
+    box-shadow: none !important;
+}
+
+/* 미니 버튼 등에는 예외 처리 */
+.t2-mini-btn, .mini-btn {
+    padding: 4px 8px !important;
+    border-radius: 6px !important;
+    font-size: 10px !important;
+    background: transparent !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-muted) !important;
+    font-weight: normal !important;
+    box-shadow: none !important;
+}
+.t2-mini-btn:hover, .mini-btn:hover {
+    color: var(--accent) !important;
+    border-color: var(--accent) !important;
+}
+
+/* ═══════════════════════════════════════
+   ★ GLOBAL HEADER (GNB) & MENU DIET
+   상단 헤더와 메인 탭의 과도한 상하 여백을 줄여 콘텐츠 몰입도를 높입니다.
+   ═══════════════════════════════════════ */
+header {
+    height: 48px !important;
+    padding: 0 16px !important;
+}
+.logo {
+    font-size: 16px !important; /* 약간 슬림하게 */
+}
+@media (min-width: 768px) {
+    .tabs {
+        top: 48px !important; /* 헤더가 48px로 줄었으므로 맞춰서 올림 */
+        padding: 0 16px !important;
+    }
+    .tab {
+        padding: 8px 14px !important; /* 상하 여백 다이어트 */
+        font-size: 12px !important;
+    }
+}
+/* T1 파이프라인 서브탭 헤더 끈적이(Sticky) 위치 조정 */
+.t1-pipeline-header {
+    top: 86px !important; /* Header(48px) + Tabs(약 38px) = 86px 언저리 */
+    padding: 0 16px !important;
+}
+.pipe-tab {
+    padding: 10px 16px !important; /* 서브탭 여백 다이어트 */
+    font-size: 12px !important;
+}.right-cart{padding:12px !important}
+
+/* ─── 장바구니 위젯 토글 애니메이션 ─── */
+@keyframes cartBadgePulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(59,130,246,0); }
+}
+

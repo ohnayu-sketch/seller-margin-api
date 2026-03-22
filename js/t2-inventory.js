@@ -19,6 +19,7 @@ const T2 = {
     products: [],           // 전체 상품 배열
     vendors: [],            // 공급업체 배열
     viewMode: 'card',       // 'card' | 'list'
+    currentTrack: 'all',    // [NEW] 트랙 필터 (all | trackA | trackB)
     filterStatus: 'all',    // all/sourcing/stocked/selling/soldout
     sortBy: 'newest',       // newest/margin/price/stock
     simMode: 'consign',     // 'consign' | 'global' | 'field'
@@ -29,9 +30,11 @@ const T2 = {
 function t2Init() {
     t2LoadProducts();
     t2LoadVendors();
+    t2LoadPendingQueue(); // [NEW] localStorage 연동
     t2InitEventListeners();
     t2RenderDashboard();
     t2RenderProducts();
+    t2ShowPendingQueue(); // [NEW] 초기 렌더링 시 대기열 UI 출력
     setTimeout(t2RenderRebalance, 500); // 리밸런싱 추천
 }
 
@@ -42,7 +45,7 @@ function t2InitEventListeners() {
     });
 
     // 마진 계산 실시간 연동
-    const inputs = ['t2-cost', 't2-supply-ship', 't2-market-ship', 't2-fee', 't2-sale-price'];
+    const inputs = ['t2-cost', 't2-supply-ship', 't2-market-ship', 't2-fee', 't2-sale-price', 't2-ad-cost'];
     inputs.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', debounce(t2RecalcMargin, 200));
@@ -137,6 +140,7 @@ function t2AddProduct(productData) {
         keyword: productData.keyword || '',
         vendor: productData.vendor || '',
         trackingNo: productData.trackingNo || '',
+        sourceText: productData.sourceText || '', // [NEW] 도매/시장조사 DOM 스크립트 메타데이터 보존
         // ★ T1 -> T2 B2B 확장 스펙 보존
         adult: productData.adult || false,
         tax: productData.tax || '과세',
@@ -204,7 +208,14 @@ function t2RenderProducts() {
 
     let items = [...T2.products];
 
-    // 필터
+    // [NEW] 트랙 필터 (Tr.A vs Tr.B)
+    if (T2.currentTrack === 'trackA') {
+        items = items.filter(p => (p.savedBy || '').includes('Tr.A') || (p.category || '').includes('Tr.A'));
+    } else if (T2.currentTrack === 'trackB') {
+        items = items.filter(p => (p.savedBy || '').includes('Tr.B') || (!((p.savedBy || '').includes('Tr.A') || (p.category || '').includes('Tr.A')))); // Tr.B거나, Tr.A가 아닌 기존 데이터(레거시) 보장
+    }
+
+    // 상태 필터
     if (T2.filterStatus !== 'all') {
         items = items.filter(p => p.status === T2.filterStatus);
     }
@@ -256,7 +267,13 @@ function t2RenderProductCard(p) {
         b2bBadges += `<span style="font-size:9px; background:transparent; border:1px dashed #64748b; color:#64748b; padding:1px 4px; border-radius:3px; margin-right:3px;">${escapeHtml(oName)}</span>`;
     }
 
-    return `<div class="t2-pcard">
+    // [NEW] Track A 여부에 따라 클릭 액션 분기
+    const isTrackA = (p.savedBy || '').includes('Tr.A') || (p.category || '').includes('Tr.A');
+    if (isTrackA) {
+        b2bBadges += `<span style="font-size:9px; background:rgba(168,85,247,0.15); color:#c084fc; padding:1px 4px; border-radius:3px; margin-right:3px; border:1px solid rgba(168,85,247,0.3); font-weight:700;">📊 벤치마킹 타겟 대상</span>`;
+    }
+
+    return `<div class="t2-pcard" onclick="t2CardClick('${p.id}', ${isTrackA})" style="cursor:pointer;">
         <div class="t2-pcard-img">${p.image ? `<img src="${p.image}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='📦'"/>` : '📦'}</div>
         <div class="t2-pcard-body">
             <div class="t2-pcard-status" style="color:${statusColor}">${t2StatusLabel(p.status)}</div>
@@ -283,6 +300,14 @@ function t2RenderProductCard(p) {
                  style="width:100%;padding:6px;margin-top:6px;border-radius:6px;border:1px solid rgba(168,85,247,0.2);background:rgba(168,85,247,0.06);color:#a78bfa;font-size:10px;font-weight:600;cursor:pointer">
                  상세페이지 만들기
                  </button>` : ''}
+            ${isTrackA ? `<button onclick="event.stopPropagation();t2AILensSearch('${p.id}')" 
+                 style="width:100%;padding:6px;margin-top:6px;border-radius:6px;border:1px solid rgba(14, 165, 233, 0.4);background:rgba(14, 165, 233, 0.1);color:#0ea5e9;font-size:10px;font-weight:700;cursor:pointer">
+                 🔍 1688 / 렌즈 원클릭 자동 추적
+                 </button>
+                 <button onclick="event.stopPropagation();t2PromoteToTrackB('${p.id}')" 
+                 style="width:100%;padding:6px;margin-top:4px;border-radius:6px;border:1px solid rgba(16, 185, 129, 0.4);background:rgba(16, 185, 129, 0.1);color:#10b981;font-size:10px;font-weight:700;cursor:pointer">
+                 ➕ 실제 소싱 데이터로 편입
+                 </button>` : ''}
         </div>
     </div>`;
 }
@@ -290,16 +315,24 @@ function t2RenderProductCard(p) {
 function t2RenderProductRow(p) {
     const marginColor = (p.margin || 0) >= 25 ? 't2-c-green' : (p.margin || 0) >= 15 ? 't2-c-warn' : 't2-c-red';
     const typeIcon = p.sourceType === 'global' ? '✈️' : p.sourceType === 'field' ? '🏪' : '🖥️';
+    
+    // [NEW] Track A 뱃지 (리스트 뷰)
+    const isTrackA = (p.savedBy || '').includes('Tr.A') || (p.category || '').includes('Tr.A');
+    const displayExt = isTrackA ? '<br><span style="font-size:9px; color:#c084fc; border:1px solid currentColor; border-radius:3px; padding:1px 3px;">📊 벤치마킹 타겟</span>' : '';
 
-    return `<tr>
+    return `<tr onclick="t2CardClick('${p.id}', ${isTrackA})" style="cursor:pointer;">
         <td><span style="color:${t2StatusColor(p.status)}">${t2StatusLabel(p.status)}</span></td>
-        <td style="font-weight:500">${escapeHtml(p.name)}</td>
+        <td style="font-weight:500">${escapeHtml(p.name)}${displayExt}</td>
         <td>${typeIcon}</td>
         <td style="text-align:right">${fmt(p.cost)}</td>
         <td style="text-align:right">${fmt(p.salePrice)}</td>
         <td style="text-align:right" class="${marginColor}" style="font-weight:700">${(p.margin||0).toFixed(1)}%</td>
         <td style="text-align:right">${p.quantity || 0}</td>
         <td>
+            ${isTrackA ? `
+            <button class="t2-mini-btn" style="color:#0ea5e9; border-color:#0ea5e9; margin-right:4px;" onclick="event.stopPropagation();t2AILensSearch('${p.id}')">🔍 추적</button>
+            <button class="t2-mini-btn" style="color:#10b981; border-color:#10b981; margin-right:4px;" onclick="event.stopPropagation();t2PromoteToTrackB('${p.id}')">➕ 편입</button>
+            ` : ''}
             <button class="t2-mini-btn" onclick="t2SendToStudio('${p.id}')">T3</button>
             <button class="t2-mini-btn t2-btn-del" onclick="t2DeleteProduct('${p.id}')">삭제</button>
         </td>
@@ -313,8 +346,54 @@ function t2SendToStudio(productId) {
     sendToStudio({
         title: p.name, name: p.name,
         price: p.salePrice, wholesale_price: p.cost,
-        image: p.image, keyword: p.keyword
+        image: p.image, keyword: p.keyword,
+        sourceText: p.sourceText || '' // [NEW] 도매/시장 스크립트 데이터 T3 즉각 전달
     });
+}
+
+// --- Track A ➡️ Track B AI 자동 이미지 추적 브리지 ---
+function t2AILensSearch(productId) {
+    const p = T2.products.find(pr => pr.id === productId);
+    if (!p) return;
+    
+    showToast(`🔍 AI 자동 렌즈 추적 시작`, `'${p.name}'\\n구글 쇼핑 렌즈와 1688 자동 검색을 실행합니다.`);
+    
+    // 1. 구글 렌즈 검색 (강력)
+    if (p.image) {
+        const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(p.image)}`;
+        window.open(lensUrl, '_blank');
+    }
+    
+    // 2. 1688 키워드 검색 (보조, 앞 2단어)
+    if (p.name) {
+        const shortName = p.name.split(' ').slice(0, 2).join(' ').replace(/[^a-zA-Z0-9가-힣\\s]/g, '');
+        const URL1688 = `https://s.1688.com/selloffer/offer_search.htm?keywords=${encodeURIComponent(shortName)}`;
+        setTimeout(() => window.open(URL1688, '_blank'), 500);
+    }
+}
+
+// --- Track A 대상 벤치마킹 상품을 실제 시뮬레이터(Track B)로 픽업 ---
+function t2PromoteToTrackB(productId) {
+    const p = T2.products.find(pr => pr.id === productId);
+    if (!p) return;
+    
+    // 시뮬레이터 인풋 폼에 데이터 자동 세팅
+    const nameEl = document.getElementById('t2-product-name');
+    const priceEl = document.getElementById('t2-sale-price');
+    const costEl = document.getElementById('t2-cost');
+
+    if (nameEl) nameEl.value = p.name || '';
+    if (priceEl) priceEl.value = p.salePrice || 0;
+    if (costEl) costEl.value = p.cost || 0;
+    
+    // 마진 계산 갱신
+    if (priceEl && priceEl.value > 0) priceEl._userEdited = true;
+    t2RecalcMargin();
+    
+    t2SetSimMode('global'); // 사입(글로벌 1688 위주) 탭으로 이동
+    
+    showToast(`♻️ 벤치마킹 타겟 편입`, `'${p.name}'\\n시뮬레이터로 이동했습니다. 알아낸 [실제 원가]를 입력하세요!`);
+    document.querySelector('.t2-module-sim')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -336,32 +415,29 @@ function t2RecalcMargin() {
     const cost = parseInt(document.getElementById('t2-cost')?.value || 0, 10);
     const supShip = parseInt(document.getElementById('t2-supply-ship')?.value || 0, 10);
     const mktShip = parseInt(document.getElementById('t2-market-ship')?.value || 0, 10);
+    const adCost = parseInt(document.getElementById('t2-ad-cost')?.value || 0, 10);
     const feeRate = parseFloat(document.getElementById('t2-fee')?.value || 5.5);
     const targetMargin = parseFloat(document.getElementById('t2-target-margin')?.value || 15);
 
     if (cost <= 0) return;
 
-    const totalCost = cost + supShip;
+    const totalCost = cost + supShip + adCost;
     
     // 역산: 희망 마진율로 필요 판매가 계산
-    // 판매가 = totalCost + mktShip + (판매가 × feeRate/100) + (판매가 × targetMargin/100)
-    // 판매가 × (1 - feeRate/100 - targetMargin/100) = totalCost + mktShip
     const multiplier = 1 - (feeRate / 100) - (targetMargin / 100);
     const salePrice = multiplier > 0 ? Math.ceil((totalCost + mktShip) / multiplier) : 0;
     
-    const feeAmount = Math.round(salePrice * feeRate / 100);
-    const profit = salePrice - totalCost - mktShip - feeAmount;
-    const actualMargin = salePrice > 0 ? ((profit / salePrice) * 100).toFixed(1) : 0;
-
     // DOM 업데이트
     const salePriceEl = document.getElementById('t2-sale-price');
     if (salePriceEl && !salePriceEl._userEdited) salePriceEl.value = salePrice;
+    
     // 판매가를 사용자가 직접 입력한 경우 → 그 값으로 재계산
     const userSalePrice = salePriceEl?._userEdited ? parseInt(salePriceEl.value || 0) : salePrice;
     const finalSalePrice = salePriceEl?._userEdited ? userSalePrice : salePrice;
     const finalFee = Math.round(finalSalePrice * feeRate / 100);
-    const finalProfit = finalSalePrice - totalCost - mktShip - finalFee;
+    const finalProfit = finalSalePrice - cost - supShip - mktShip - adCost - finalFee;
     const finalMargin = finalSalePrice > 0 ? ((finalProfit / finalSalePrice) * 100).toFixed(1) : 0;
+    const roi = cost > 0 ? ((finalProfit / cost) * 100).toFixed(1) : 0;
 
     const resultEl = document.getElementById('t2-margin-result');
     if (resultEl) {
@@ -372,16 +448,26 @@ function t2RecalcMargin() {
                     <div class="t2-result-val t2-c-green">${fmtWon(finalSalePrice)}</div>
                 </div>
                 <div class="t2-result-item">
-                    <div class="t2-result-label">수수료</div>
+                    <div class="t2-result-label">수수료(마켓)</div>
                     <div class="t2-result-val">${fmtWon(finalFee)}</div>
+                </div>
+                <div class="t2-result-item">
+                    <div class="t2-result-label">광고비(기타)</div>
+                    <div class="t2-result-val">${fmtWon(adCost)}</div>
                 </div>
                 <div class="t2-result-item">
                     <div class="t2-result-label">건당 순이익</div>
                     <div class="t2-result-val" style="color:${finalProfit >= 0 ? '#10b981' : '#ef4444'}">${fmtWon(finalProfit)}</div>
                 </div>
-                <div class="t2-result-item">
-                    <div class="t2-result-label">실제 마진율</div>
-                    <div class="t2-result-val" style="color:${finalMargin >= 25 ? '#10b981' : finalMargin >= 15 ? '#f59e0b' : '#ef4444'}">${finalMargin}%</div>
+                <div class="t2-result-item" style="border-top:1px dashed rgba(255,255,255,0.1); grid-column:1/-1; margin-top:4px; padding-top:12px; display:flex; justify-content:space-around;">
+                    <div style="text-align:center;">
+                        <span style="font-size:10px;color:var(--text-muted)">최종 안전마진율</span><br>
+                        <strong style="font-size:16px;color:${finalMargin >= 20 ? '#10b981' : (finalMargin >= 15 ? '#f59e0b' : '#ef4444')}">${finalMargin}%</strong>
+                    </div>
+                    <div style="text-align:center;">
+                        <span style="font-size:10px;color:var(--text-muted)">투자수익률 (ROI)</span><br>
+                        <strong style="font-size:16px;color:${roi >= 100 ? '#10b981' : (roi >= 50 ? '#f59e0b' : '#ef4444')}">${roi}%</strong>
+                    </div>
                 </div>
             </div>
         `;
@@ -389,10 +475,10 @@ function t2RecalcMargin() {
     }
 
     // 8마켓 비교 테이블
-    t2RenderMarketComparison(cost, supShip, mktShip, finalSalePrice);
+    t2RenderMarketComparison(cost, supShip, mktShip, adCost, finalSalePrice);
 
     // 위탁↔사입 전환 데이터 저장
-    window._t2LastCalc = { cost, supShip, mktShip, feeRate, salePrice: finalSalePrice, profit: finalProfit, margin: finalMargin };
+    window._t2LastCalc = { cost, supShip, mktShip, adCost, feeRate, salePrice: finalSalePrice, profit: finalProfit, margin: finalMargin };
 }
 
 // ─── 판매가 직접 입력 시 역마진 계산 ───
@@ -409,7 +495,7 @@ function t2OnSalePriceInput(value) {
 }
 
 // 8마켓 비교 테이블
-function t2RenderMarketComparison(cost, supShip, mktShip, salePrice) {
+function t2RenderMarketComparison(cost, supShip, mktShip, adCost, salePrice) {
     const el = document.getElementById('t2-market-compare');
     if (!el) return;
 
@@ -419,12 +505,12 @@ function t2RenderMarketComparison(cost, supShip, mktShip, salePrice) {
 
     Object.entries(fees).forEach(([key, info]) => {
         const feeAmt = Math.round(salePrice * info.fee / 100);
-        const profit = salePrice - cost - supShip - mktShip - feeAmt;
+        const profit = salePrice - cost - supShip - mktShip - adCost - feeAmt;
         const margin = salePrice > 0 ? ((profit / salePrice) * 100).toFixed(1) : 0;
 
         if (profit > bestProfit) { bestProfit = profit; bestMarket = key; }
 
-        const marginColor = margin >= 25 ? '#10b981' : margin >= 15 ? '#f59e0b' : '#ef4444';
+        const marginColor = margin >= 20 ? '#10b981' : margin >= 15 ? '#f59e0b' : '#ef4444';
 
         html += `<div class="t2-mkt-card ${key === bestMarket ? 't2-mkt-best' : ''}" onclick="t2SelectMarket('${key}',${info.fee})">
             <div class="t2-mkt-name">${info.icon} ${info.name}</div>
@@ -687,40 +773,64 @@ function t2CloseVendorModal() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PART 8: T1 대기 상품 큐
+// PART 8: T1 대기 상품 큐 (localStorage 'v5_t2_sourcing_items' 연동)
 // ═══════════════════════════════════════════════════════════════
+
+function t2LoadPendingQueue() {
+    try {
+        T2.pendingQueue = JSON.parse(localStorage.getItem('v5_t2_sourcing_items') || '[]');
+    } catch(e) {
+        T2.pendingQueue = [];
+    }
+}
+
+function t2SavePendingQueue() {
+    localStorage.setItem('v5_t2_sourcing_items', JSON.stringify(T2.pendingQueue));
+}
 
 function t2AddToPendingQueue(data) {
     T2.pendingQueue.push({
         ...data,
         receivedAt: new Date().toISOString(),
     });
+    t2SavePendingQueue();
     t2RenderDashboard();
+    t2ShowPendingQueue();
     showToast(`📥 "${data.name}" T1에서 수신 — 대기열에 추가됨`);
 }
 
 function t2ShowPendingQueue() {
-    const el = document.getElementById('t2-pending-list');
+    const el = document.getElementById('t2-pending-items');
     if (!el) return;
 
     if (!T2.pendingQueue.length) {
-        el.innerHTML = '<div class="t2-empty-small">대기 상품이 없습니다</div>';
+        el.innerHTML = `
+            <div style="text-align:center;padding:60px 20px;color:var(--text-muted);font-size:12px;border:1px dashed rgba(255,255,255,0.1);border-radius:8px;">
+                <div style="font-size:32px;margin-bottom:12px;opacity:0.5;">📥</div>
+                T1 수집 대기열에서<br>상품을 이관해주세요.
+            </div>`;
         return;
     }
 
     el.innerHTML = T2.pendingQueue.map((item, idx) => {
         var stBadge = item.sourcing_type === 'drop' ? '🟢위탁' : (item.sourcing_type === 'bulk' ? '📦사입' : '');
         return `
-        <div class="t2-pending-row">
-            <span class="t2-pending-name">${escapeHtml(item.name)} ${stBadge ? '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(74,222,128,0.1);color:#4ade80;">' + stBadge + '</span>' : ''}</span>
-            <span class="t2-pending-price">도매 ${fmtWon(item.wholesale_price)} / 시중 ${fmtWon(item.retail_price)}</span>
-            <button class="t2-act-btn t2-c-green" onclick="t2AcceptPending(${idx})">등록</button>
-            <button class="t2-act-btn" onclick="t2SendPendingToStudio(${idx})">T3</button>
-            <button class="t2-act-btn t2-btn-del" onclick="t2DismissPending(${idx})">무시</button>
+        <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+            <div style="font-size:12px; font-weight:700; color:#f1f5f9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(item.name)}">
+                ${escapeHtml(item.name)} ${stBadge ? '<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(74,222,128,0.1);color:#4ade80;">' + stBadge + '</span>' : ''}
+            </div>
+            <div style="font-size:11px; color:#94a3b8; display:flex; justify-content:space-between;">
+                <span>원가: ${fmtWon(item.wholesale_price || item.cost)}</span>
+                <span>판매가: ${fmtWon(item.retail_price || item.salePrice)}</span>
+            </div>
+            <div style="display:flex; gap:6px; margin-top:4px;">
+                <button style="flex:1; padding:6px; font-size:11px; font-weight:700; background:rgba(59,130,246,0.1); color:#3b82f6; border:1px solid rgba(59,130,246,0.5); border-radius:4px; cursor:pointer;" onclick="t2AcceptPending(${idx})">픽업 & 마진 계산</button>
+                <button style="padding:6px 10px; font-size:11px; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.5); border-radius:4px; cursor:pointer;" onclick="t2DismissPending(${idx})">삭제</button>
+            </div>
         </div>
     `}).join('');
 
-    el.style.display = 'block';
+    el.style.display = 'flex';
 }
 
 function t2AcceptPending(idx) {
@@ -746,6 +856,7 @@ function t2AcceptPending(idx) {
     t2RecalcMargin();
 
     T2.pendingQueue.splice(idx, 1);
+    t2SavePendingQueue();
     t2RenderDashboard();
     t2ShowPendingQueue();
     const stBadge = item.sourcing_type === 'drop' ? '🟢위탁' : (item.sourcing_type === 'bulk' ? '📦사입 ' : '');
@@ -757,12 +868,14 @@ function t2SendPendingToStudio(idx) {
     if (!item) return;
     sendToStudio(item);
     T2.pendingQueue.splice(idx, 1);
+    t2SavePendingQueue();
     t2RenderDashboard();
     t2ShowPendingQueue();
 }
 
 function t2DismissPending(idx) {
     T2.pendingQueue.splice(idx, 1);
+    t2SavePendingQueue();
     t2RenderDashboard();
     t2ShowPendingQueue();
 }
@@ -779,7 +892,7 @@ function t2SaveFromSimulator() {
 
     t2AddProduct({
         name, cost,
-        salePrice: calc?.salePrice || 0,
+        salePrice: calc?.salePrice || parseInt(document.getElementById('t2-sale-price')?.value || 0, 10) || 0,
         margin: calc?.margin || 0,
         market: document.getElementById('t2-market-select')?.value || 'smartstore',
         fee: parseFloat(document.getElementById('t2-fee')?.value || 5.5),
@@ -830,6 +943,79 @@ function sendToStudioFromT2() {
     });
     
     showToast(`🎨 "${name}" 스튜디오로 전송 완료!`);
+}
+
+// ─── T2 카드 클릭 & 표적 고정 로직 ───
+function t2SetTrack(trackValue) {
+    T2.currentTrack = trackValue;
+    document.querySelectorAll('.t2-track-btn').forEach(b => {
+        if (b.onclick.toString().includes(trackValue)) {
+            b.classList.add('active');
+            b.style.opacity = '1';
+        } else {
+            b.classList.remove('active');
+            b.style.opacity = '0.6';
+        }
+    });
+    t2RenderProducts();
+}
+
+function t2CardClick(id, isTrackA) {
+    if (isTrackA) {
+        t2PinReference(id);
+    } else {
+        t2LoadSimulator(id);
+    }
+}
+
+function t2PinReference(id) {
+    const p = T2.products.find(x => x.id === id);
+    if (!p) return;
+    
+    const panel = document.getElementById('t2-ref-content');
+    if (!panel) return;
+    
+    // 이 상품의 리뷰수 및 약점 분석은 메모나 카테고리에 직렬화되어 있음 ('리뷰가속도:150')
+    const memo = p.memo || '';
+    const reviews = memo.match(/리뷰가속도:([0-9]+)/)?.[1] || "정보 없음";
+    
+    panel.innerHTML = `
+        <div class="t2-ref-img">
+            ${p.image ? `<img src="${p.image}" alt="">` : '<div style="background:#1e293b;width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px">📦</div>'}
+        </div>
+        <div class="t2-ref-title">${escapeHtml(p.name)}</div>
+        <div class="t2-ref-price">${fmtWon(p.salePrice || p.cost || 0)} <span style="font-size:12px;color:#94a3b8;font-weight:400">판매가</span></div>
+        
+        <div class="t2-ref-box">
+            <div class="t2-ref-box-label">🔥 리스팅 가속도</div>
+            <div class="t2-ref-box-val" style="color:#f59e0b;font-weight:700;">최근 리뷰 ${reviews}개 증가 추이</div>
+        </div>
+        
+        <div class="t2-ref-box">
+            <div class="t2-ref-box-label">🎯 공략 한계선 (30% 마진 적용)</div>
+            <div class="t2-ref-box-val">우리가 도매에서 <strong style="color:#10b981">${fmtWon(Math.floor((p.salePrice || 0) * 0.5))}원</strong> 이하에 떼오면 승산있음</div>
+        </div>
+        
+        <a href="${p.link || '#'}" target="_blank" style="display:block;text-align:center;padding:10px;background:rgba(255,255,255,0.05);border-radius:8px;color:#cbd5e1;text-decoration:none;font-size:11px;margin-top:10px;border:1px solid rgba(255,255,255,0.1)">🔗 원본 페이지(경쟁사) 열기</a>
+    `;
+    
+    showToast(`🎯 [${p.name}] 마진 계산 벤치마킹 표적으로 고정됨`);
+}
+
+function t2LoadSimulator(id) {
+    const p = T2.products.find(x => x.id === id);
+    if (!p) return;
+    
+    document.getElementById('t2-product-name').value = p.name || '';
+    document.getElementById('t2-cost').value = p.cost || 0;
+    document.getElementById('t2-sale-price').value = p.salePrice || 0;
+    if (p.salePrice > 0) document.getElementById('t2-sale-price')._userEdited = true;
+    
+    window._t2CurrentPendingItem = p;
+    t2SetSimMode('consign');
+    t2RecalcMargin();
+    
+    showToast(`💡 [${p.name}] 도매 원가 시뮬레이터 로드됨`);
 }
 
 // 필터/뷰 전환
@@ -934,6 +1120,109 @@ function t2RebalanceAction(productId, action) {
     }
 }
 
+// ─── T2 현장 사입 사진 및 정보 기록 로직 ───
+async function t2HandleFieldPhotos(files) {
+    const previewEl = document.getElementById('t2-field-photo-preview');
+    if (!previewEl) return;
+    previewEl.innerHTML = ''; 
+    window._t2FieldPhotos = []; 
+    
+    for(let i=0; i<files.length; i++) {
+        const file = files[i];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target.result;
+            window._t2FieldPhotos.push({
+                name: file.name,
+                mimeType: file.type,
+                data: dataUrl.split(',')[1] 
+            });
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.style.width = '60px';
+            img.style.height = '60px';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '4px';
+            img.style.border = '1px solid rgba(255,255,255,0.1)';
+            previewEl.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+async function t2SubmitFieldSourcing() {
+    const vendor = document.getElementById('t2-field-vendor')?.value;
+    const phone = document.getElementById('t2-field-phone')?.value;
+    const price = document.getElementById('t2-field-price')?.value;
+    const qty = document.getElementById('t2-field-qty')?.value;
+    const shipping = document.getElementById('t2-field-shipping')?.value || 0;
+    const memo = document.getElementById('t2-field-memo')?.value;
+    
+    if(!vendor || !price || !qty) {
+        showToast('❌ 상호명, 단가, 수량을 모두 입력해주세요.');
+        return;
+    }
+    
+    showToast('🚀 현장 사입 정보를 저장 중입니다... (사진 업로드 포함)');
+    const submitBtn = document.querySelector('#t2-sim-field button[onclick*="t2SubmitFieldSourcing"]');
+    if(submitBtn) submitBtn.disabled = true;
+    
+    const payload = {
+        vendor, phone, price: parseInt(price), qty: parseInt(qty), shipping: parseInt(shipping), memo,
+        photos: window._t2FieldPhotos || []
+    };
+    
+    try {
+        const res = await fetchGasRetry('submitFieldSourcing', payload);
+        if(res && res.success) {
+            showToast('✅ 현장 사입 현황이 성공적으로 구글 드라이브와 시트에 저장되었습니다.');
+            t2AddProduct({
+                name: `[현장사입] ${vendor}`,
+                cost: parseInt(price),
+                salePrice: 0,
+                quantity: parseInt(qty),
+                sourceType: 'field',
+                sourcingType: 'bulk',
+                memo: `연락처: ${phone} / 배송비: ${shipping} / 메모: ${memo}`,
+                image: res.photoUrls && res.photoUrls.length > 0 ? res.photoUrls[0] : ''
+            });
+            
+            // 초기화
+            window._t2FieldPhotos = [];
+            ['t2-field-vendor', 't2-field-phone', 't2-field-price', 't2-field-qty', 't2-field-shipping', 't2-field-memo'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.value = '';
+            });
+            document.getElementById('t2-field-photo-preview').innerHTML = '';
+        } else {
+            showToast('❌ 오류 발생: ' + (res?.error || '알 수 없는 서버 오류'));
+        }
+    } catch (e) {
+        showToast('❌ 네트워크 오류가 발생했습니다: ' + e.message);
+    } finally {
+        if(submitBtn) submitBtn.disabled = false;
+    }
+}
+
+// [NEW] 트랙 분리 토글 스크립트 연결
+function t2SetTrack(trackValue) {
+    T2.currentTrack = trackValue;
+    
+    // UI 버튼 활성화 전환
+    document.querySelectorAll('.t2-track-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.opacity = '0.6';
+    });
+    
+    const target = document.querySelector(`.t2-track-btn[onclick*="${trackValue}"]`);
+    if (target) {
+        target.classList.add('active');
+        target.style.opacity = '1';
+    }
+    
+    t2RenderProducts();
+}
+
 // ─── 초기화 실행 ───
 document.addEventListener('DOMContentLoaded', t2Init);
 
@@ -959,6 +1248,9 @@ window.t2ShowPendingQueue = t2ShowPendingQueue;
 window.t2AcceptPending = t2AcceptPending;
 window.t2SendToStudio = t2SendToStudio;
 window.sendToStudioFromT2 = sendToStudioFromT2; // 새로 추가된 T3 직연동 함수
+window.t2HandleFieldPhotos = t2HandleFieldPhotos;
+window.t2SubmitFieldSourcing = t2SubmitFieldSourcing;
+window.t2SetTrack = t2SetTrack;
 window.t2RenderRebalance = t2RenderRebalance;
 window.t2RebalanceAction = t2RebalanceAction;
 window.T2 = T2;

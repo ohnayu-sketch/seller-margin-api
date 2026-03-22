@@ -62,24 +62,55 @@
   </style>
 </head>
 <body>
-  <div class="title">🚀 통합 소싱 클리퍼</div>
-  
+  <!-- Track Tabs -->
+  <div class="tabs" style="display:flex; margin-bottom:12px; background:#1e293b; padding:4px; border-radius:8px;">
+    <button id="tab-trackA" class="tab-btn active" style="flex:1; padding:8px; font-size:12px; background:transparent; color:#94a3b8; border-radius:6px; cursor:pointer; border:none;">Track A: 시장분석</button>
+    <button id="tab-trackB" class="tab-btn" style="flex:1; padding:8px; font-size:12px; background:transparent; color:#94a3b8; border-radius:6px; cursor:pointer; border:none;">Track B: 도매수집</button>
+  </div>
+
   <div id="settings-panel" style="margin-bottom:12px; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
     <div style="font-size:11px; margin-bottom:6px; color:#94a3b8;">T7 설정의 GAS 배포 URL (필수):</div>
     <input type="text" id="gas-url-input" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%; box-sizing:border-box; padding:6px; font-size:10px; border-radius:4px; border:1px solid #475569; background:#0f172a; color:#fff; margin-bottom:6px;">
-    <button id="saveUrlBtn" style="padding:6px; font-size:11px; background:#475569;">URL 저장하기</button>
+    <button id="saveUrlBtn" class="action-btn" style="padding:6px; font-size:11px; background:#475569;">URL 저장하기</button>
   </div>
   
-  <div id="product-card" class="card">
-    <img id="p-img" src="" alt="상품 썸네일" />
-    <div id="p-title" class="p-title">로딩 중...</div>
-    <div id="p-price" class="p-price">-원</div>
+  <!-- Track A: Market Research Panel -->
+  <div id="panel-trackA" class="panel-content">
+    <div id="a-card" class="card">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <img id="a-img" src="" alt="상품 썸네일" style="width:60px; height:60px; object-fit:cover; border-radius:4px;" onerror="this.style.display='none'" />
+            <div style="flex:1;">
+                <div id="a-title" class="p-title" style="font-size:13px; margin-bottom:2px;">시장분석 진행대기</div>
+                <div id="a-velocity" style="font-size:11px; color:#f43f5e; font-weight:bold;">🔥 리뷰 급상승: 대기중</div>
+            </div>
+        </div>
+        <div id="a-weakness-box" style="background:#0f172a; padding:8px; border-radius:4px; font-size:11px; color:#cbd5e1; border:1px solid #334155;">
+            [AI 분석 결과]<br/>경쟁사 취약점 분석 대기중...
+        </div>
+    </div>
+    <button id="clipBtn_A" class="action-btn">🔍 시장 데이터 추출 (Track A)</button>
+    <button id="sendBtn_A" class="action-btn" style="display:none; background:#10b981; margin-top:8px;">✅ 소싱 대시보드로 전송</button>
   </div>
 
-  <button id="clipBtn">🔍 이 상품 정보 스크래핑</button>
-  <button id="sendBtn" style="display:none; background:#10b981; margin-top:8px;">✅ 소싱 대시보드(T1)로 전송</button>
+  <!-- Track B: Deep Sourcing Panel -->
+  <div id="panel-trackB" class="panel-content" style="display:none;">
+    <div id="b-card" class="card">
+        <img id="b-img" src="" alt="상품 썸네일" />
+        <div id="b-title" class="p-title">로딩 중...</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span style="font-size:11px; color:#94a3b8;">도매가</span>
+            <span id="b-price" class="p-price">-원</span>
+        </div>
+        <div id="b-margin-warning" style="display:none; font-size:11px; font-weight:bold; background:#7f1d1d; color:#fca5a5; padding:6px; border-radius:4px; text-align:center; margin-top:8px;">
+            ⚠️ 기본 마진율 경고: 수익성 점검 필요
+        </div>
+    </div>
+
+    <button id="clipBtn_B" class="action-btn">🔍 도매 데이터 딥소스 (Track B)</button>
+    <button id="sendBtn_B" class="action-btn" style="display:none; background:#10b981; margin-top:8px;">✅ 도매 장부에 꽂기</button>
+  </div>
   
-  <div id="status">상품 페이지(도매매/네이버 등)를 열어주세요.</div>
+  <div id="status">상품 페이지를 열고 스크래핑을 시작하세요.</div>
   <script src="popup.js"></script>
 </body>
 </html>

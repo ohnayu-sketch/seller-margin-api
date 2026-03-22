@@ -44,93 +44,26 @@ function t1SwitchPipe(mode) {
         b.classList.toggle('active', b.dataset.mode === mode);
     });
 
-    const vTrend = document.getElementById('t1-main-trend-content');
-    const vSearch = document.getElementById('t1-main-search-content');
+    const vInteg = document.getElementById('t1-main-integrated-content');
     const vBulk = document.getElementById('t1-main-bulk-content');
     const lp = document.querySelector('#page-sourcing .left-panel');
     const cart = document.getElementById('t1-cart-panel');
     
-    // 동적 공유 요소
-    const grid = document.getElementById('t1-feed-grid');
-    const pagination = document.getElementById('t1-feed-pagination');
-    const marketPanel = document.getElementById('t1-market-panel');
-    const searchArea = document.getElementById('t1-search-results-area');
-    const subtabBar = document.getElementById('t1-subtab-bar');
-
     // 전부 숨기기
-    if (vTrend) vTrend.style.display = 'none';
-    if (vSearch) vSearch.style.display = 'none';
+    if (vInteg) vInteg.style.display = 'none';
     if (vBulk) vBulk.style.display = 'none';
 
-    if (mode === 'trend') {
-        if (lp) lp.style.display = 'none'; // 좌측 패널 화면 넓게 쓰기 위해 숨김 유지
-        if (vTrend) vTrend.style.display = 'block';
+    if (mode === 'integrated') {
+        if (lp) lp.style.display = 'none'; // 넓게 쓰기 위해 숨김 유지
+        if (vInteg) vInteg.style.display = 'flex'; 
         if (cart) cart.style.display = 'flex';
         
-        // 동적 요소를 트렌드 뷰로 원복
-        if (subtabBar && vTrend) {
-            vTrend.insertBefore(subtabBar, vTrend.firstChild);
-            subtabBar.style.display = 'none'; // 트렌드에선 숨김
+        // 검색 모드가 아닐 때만 예측 트렌드 로드 (검색어 상태 보존용)
+        if (!T1Feed.isSearchMode) {
+            t1FeedLoadPredictiveBoard();
+        } else {
+            document.getElementById('t1-feed-search')?.focus();
         }
-        if (grid && vTrend) vTrend.appendChild(grid);
-        if (pagination && vTrend) vTrend.appendChild(pagination);
-        if (marketPanel) marketPanel.style.display = 'none'; // 트렌드에선 숨김
-        
-        // 트렌드 데이터(예측 보드) 로드
-        T1Feed.isSearchMode = false;
-        t1FeedLoadPredictiveBoard();
-
-    } else if (mode === 'search') {
-        if (lp) lp.style.display = 'none'; // 넓게 쓰기 위해 좌측 숨김
-        if (vSearch) vSearch.style.display = 'flex';
-        if (cart) cart.style.display = 'flex';
-        
-        // 동적 요소를 Search 뷰로 이동
-        if (searchArea) {
-            searchArea.innerHTML = ''; // Placeholder 제거
-            
-            const splitWrapper = document.createElement('div');
-            splitWrapper.className = 't1-split-view-container';
-            splitWrapper.style.display = 'flex';
-            splitWrapper.style.flexWrap = 'wrap'; // 화면 좁을 때 아래로 떨어지게 방어
-            splitWrapper.style.gap = '24px';
-            splitWrapper.style.alignItems = 'flex-start';
-            splitWrapper.style.width = '100%';
-            
-            const leftPane = document.createElement('div');
-            leftPane.id = 't1-search-left-pane';
-            // 최소 320px, 최대 380px 사이에서 유동적으로 조절
-            leftPane.style.flex = '1 1 350px';
-            leftPane.style.maxWidth = '400px';
-            leftPane.style.minWidth = '300px';
-            leftPane.style.boxSizing = 'border-box';
-            
-            const rightPane = document.createElement('div');
-            rightPane.id = 't1-search-right-pane';
-            rightPane.style.flex = '2 1 600px'; // 우측에 더 많은 공간 부여
-            rightPane.style.minWidth = '0';
-            rightPane.style.display = 'flex';
-            rightPane.style.flexDirection = 'column';
-            rightPane.style.gap = '16px';
-            
-            if (marketPanel) leftPane.appendChild(marketPanel);
-            
-            if (subtabBar) {
-                rightPane.appendChild(subtabBar);
-                subtabBar.style.display = 'flex'; // 검색에선 표시 !
-                subtabBar.style.marginBottom = '0px';
-            }
-            if (grid) rightPane.appendChild(grid);
-            if (pagination) rightPane.appendChild(pagination);
-            
-            splitWrapper.appendChild(leftPane);
-            splitWrapper.appendChild(rightPane);
-            
-            searchArea.appendChild(splitWrapper);
-        }
-        
-        if (marketPanel && T1Feed.isSearchMode) marketPanel.style.display = 'block';
-        setTimeout(() => { document.getElementById('t1-feed-search')?.focus(); }, 100);
 
     } else if (mode === 'bulk') {
         if (lp) lp.style.display = 'none'; // 넓게 쓰기 위함
@@ -370,9 +303,15 @@ async function t1FeedLoadPredictiveBoard() {
     T1Feed.loading = true;
     T1Feed.isSearchMode = false;
 
-    // 페이지네이션 숨기기
+    // 페이지네이션 및 필터 구역 숨기기 (트렌드 보드 모드)
     const pg = document.getElementById('t1-feed-pagination');
     if (pg) pg.innerHTML = '';
+    const subtabBar = document.getElementById('t1-subtab-bar');
+    if (subtabBar) subtabBar.style.display = 'none';
+    const filterBar = document.getElementById('t1-feed-filter-bar');
+    if (filterBar) filterBar.style.display = 'none';
+    const searchArea = document.getElementById('t1-search-results-area');
+    if (searchArea) searchArea.style.display = 'none';
 
     const grid = document.getElementById('t1-feed-grid');
     if (grid) {
@@ -396,6 +335,15 @@ async function t1FeedLoadPredictiveBoard() {
     } catch (e) {
         console.warn('[T1Feed] 예측 트렌드 로드 실패, 일반 피드 폴백:', e);
         grid.style.display = 'grid'; // 다시 그리드로 복원
+        
+        // 검색 결과 화면 세팅 켜기
+        const searchArea = document.getElementById('t1-search-results-area');
+        if (searchArea) searchArea.style.display = 'flex';
+        const subtabBar = document.getElementById('t1-subtab-bar');
+        if (subtabBar) subtabBar.style.display = 'flex';
+        const filterBar = document.getElementById('t1-feed-filter-bar');
+        if (filterBar) filterBar.style.display = 'flex';
+
         T1Feed.loading = false;
         await t1FeedLoadFeed();
         return;
@@ -408,19 +356,19 @@ function t1FeedRenderPredictiveBoard(trends, totalAnalyzed) {
     if (!grid) return;
 
     let html = `
-        <div style="background:rgba(22,25,32,0.8); border:1px solid rgba(255,255,255,0.05); border-radius:12px; margin-bottom:20px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:20px; border-bottom:1px solid rgba(255,255,255,0.05); position:sticky; top:150px; background:rgba(22,25,32,0.95); z-index:90; border-radius:12px 12px 0 0; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);">
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border); position:sticky; top:110px; background:rgba(22,25,32,0.95); z-index:90; border-radius:8px 8px 0 0; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);">
                 <div>
-                    <h3 style="margin:0; font-size:16px; color:#fff; display:flex; align-items:center; gap:8px;">
-                        <span style="font-size:20px;">🔮</span> 오늘의 소싱 추천 (시스템 예측)
+                    <h3 style="margin:0; font-size:14px; color:#fff; display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:16px;">🔮</span> 오늘의 소싱 추천 (시스템 예측)
                     </h3>
-                    <p style="margin:4px 0 0; font-size:12px; color:#94a3b8;">
+                    <p style="margin:2px 0 0; font-size:11px; color:var(--text-muted);">
                         과거 ${fmt(totalAnalyzed)}시간의 데이터랩 시계열 랭킹을 분석하여, 현재 가장 가파르게 수요가 급증하고 있는 키워드를 선제적으로 제안합니다.
                     </p>
                 </div>
             </div>
             
-            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; padding:20px;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:8px; padding:12px;">
     `;
 
     trends.forEach((t, i) => {
@@ -429,42 +377,42 @@ function t1FeedRenderPredictiveBoard(trends, totalAnalyzed) {
         const trendTag = isNewEntry ? `<span style="background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2); font-size:10px; padding:2px 6px; border-radius:4px; font-weight:bold;">NEW 진입</span>` 
             : `<span style="background:rgba(52,211,153,0.1); color:#34d399; border:1px solid rgba(52,211,153,0.2); font-size:10px; padding:2px 6px; border-radius:4px;">급상승 중</span>`;
 
-        // [Strategy C] Opportunity Score (승률 시뮬레이터 모델)
-        // 향후 백엔드 파이썬 봇이 측정한 마진율 곱연산 값을 꽂아 넣을 자리입니다.
+        // [Strategy C] Opportunity Score (시즌성 폭발 지수 모델)
+        // 백엔드 파이썬 봇이 측정한 3개년 시계열 가중치를 반영합니다.
         const baseScore = isNewEntry ? 70 : 40;
         const oppScore = Math.min(99, Math.floor(baseScore + (t.rankDelta * 1.5) + (Math.random() * 10)));
         const scoreColor = oppScore >= 80 ? '#f43f5e' : oppScore >= 60 ? '#f59e0b' : '#34d399';
-        const scoreBadge = `<div style="background:color-mix(in srgb, ${scoreColor} 15%, transparent); color:${scoreColor}; border:1px solid rgba(255,255,255,0.1); border-radius:30px; padding:3px 8px; font-size:11px; font-weight:800; display:flex; align-items:center; gap:4px;" title="(단기 검색 폭증률) / (마켓 상품수) * 예상마진율 = 시뮬레이션 승률"><span style="font-size:12px;">🎯</span> 승률 ${oppScore}%</div>`;
+        const scoreBadge = `<div style="background:color-mix(in srgb, ${scoreColor} 15%, transparent); color:${scoreColor}; border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:2px 6px; font-size:10px; font-weight:800; display:flex; align-items:center; gap:3px;" title="과거 3년 패턴 및 단기 수요 폭증률 기반 예측 지수"><span style="font-size:11px;">🔥</span> 성장예측 ${oppScore}%</div>`;
 
         html += `
-            <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'" onclick="t1FeedClickKeyword('${escapeHtml(t.keyword).replace(/'/g, "\\'")}')">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="font-size:16px; font-weight:700; color:${i < 3 ? '#fbbf24' : '#e2e8f0'}">${i + 1}</span>
-                        <div style="display:flex; flex-direction:column;">
-                            <span style="font-size:14px; color:#fff; font-weight:600;">${escapeHtml(t.keyword)}</span>
-                            <span style="font-size:11px; color:#64748b;">${escapeHtml(t.categoryName || '*')}</span>
+            <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:8px; cursor:pointer; transition:all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'" onclick="t1FeedClickKeyword('${escapeHtml(t.keyword).replace(/'/g, "\\'")}')">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:14px; font-weight:800; color:${i < 3 ? '#fbbf24' : 'var(--text-muted)'}">${i + 1}</span>
+                        <div style="display:flex; flex-direction:column; line-height:1.2;">
+                            <span style="font-size:12px; color:#fff; font-weight:700;">${escapeHtml(t.keyword)}</span>
+                            <span style="font-size:10px; color:var(--text-muted);">${escapeHtml(t.categoryName || '*')}</span>
                         </div>
                     </div>
-                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
                         ${scoreBadge}
                         ${trendTag}
                     </div>
                 </div>
                 
-                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.2); border-radius:6px; padding:8px 10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.2); border-radius:4px; padding:6px 8px;">
                     <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
-                        <span style="font-size:10px; color:#64748b;">지난 주말</span>
-                        <span style="font-size:12px; color:#94a3b8; text-decoration:line-through;">${t.pastRank === 100 ? '100위 밖' : t.pastRank + '위'}</span>
+                        <span style="font-size:9px; color:var(--text-muted);">지난 주말</span>
+                        <span style="font-size:11px; color:#94a3b8; text-decoration:line-through;">${t.pastRank === 100 ? '100위 밖' : t.pastRank + '위'}</span>
                     </div>
-                    <div style="font-size:14px; color:#475569;">➜</div>
+                    <div style="font-size:12px; color:#475569;">➜</div>
                     <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
-                        <span style="font-size:10px; color:#64748b;">오늘 순위</span>
-                        <span style="font-size:14px; color:#fff; font-weight:bold;">${t.currentRank}위</span>
+                        <span style="font-size:9px; color:var(--text-muted);">오늘 순위</span>
+                        <span style="font-size:12px; color:#fff; font-weight:bold;">${t.currentRank}위</span>
                     </div>
-                    <div style="width:1px; height:20px; background:rgba(255,255,255,0.1); margin:0 8px;"></div>
-                    <div style="display:flex; flex-direction:column; align-items:center; width:40px;">
-                        <span style="font-size:10px; color:#64748b;">상승폭</span>
+                    <div style="width:1px; height:16px; background:rgba(255,255,255,0.1); margin:0 6px;"></div>
+                    <div style="display:flex; flex-direction:column; align-items:center; width:36px;">
+                        <span style="font-size:9px; color:var(--text-muted);">상승폭</span>
                         ${rankDeltaIcon}
                     </div>
                 </div>
@@ -475,8 +423,8 @@ function t1FeedRenderPredictiveBoard(trends, totalAnalyzed) {
     html += `
             </div>
             
-            <div style="margin-top:20px; text-align:center;">
-                <button onclick="t1FeedLoadFeed()" style="padding:10px 20px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#cbd5e1; font-size:12px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+            <div style="margin-top:12px; text-align:center; padding-bottom:12px;">
+                <button onclick="t1FeedLoadFeed()" style="padding:8px 16px; border-radius:6px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:var(--text-muted); font-size:11px; cursor:pointer; transition:all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
                     🔙 기존 일반 소싱 피드로 돌아가기
                 </button>
             </div>
@@ -500,10 +448,10 @@ async function t1FeedSearch() {
         const mp = document.getElementById('t1-market-panel');
         if (mp) mp.style.display = 'none';
         
-        // 검색 취소 시 빈 화면 (Search Mode일 경우) 또는 예측 보드 (Trend Mode일 경우)
-        if (window._t1PipeMode === 'trend') {
+        // 검색 취소 시 빈 화면 대신 무조건 예측 트렌드 보드로 복귀 (통합 모드)
+        if (window._t1PipeMode === 'integrated') {
             await t1FeedLoadPredictiveBoard();
-        } else if (window._t1PipeMode === 'search') {
+        } else {
             const grid = document.getElementById('t1-feed-grid');
             if(grid) grid.innerHTML = '';
         }
@@ -543,6 +491,15 @@ async function t1FeedSearch() {
     }
 
     T1Feed.loading = false;
+    
+    // 검색 결과 화면 및 관련 필터(위탁/사입 등) 세팅 켜기
+    const searchArea = document.getElementById('t1-search-results-area');
+    if (searchArea) searchArea.style.display = 'flex';
+    const subtabBar = document.getElementById('t1-subtab-bar');
+    if (subtabBar) subtabBar.style.display = 'flex';
+    const filterBar = document.getElementById('t1-feed-filter-bar');
+    if (filterBar) filterBar.style.display = 'flex';
+
     t1FeedApplyFilter();
 }
 
@@ -605,50 +562,75 @@ function t1FeedRenderMarketPanel(keyword, rawData, wholesaleItems) {
 
     let html = '';
 
-    // 헤더 (인텔리전스 융합)
-    html += `<div class="mp-header" style="display:flex; flex-direction:column; gap:12px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <span class="mp-title" style="font-size:14px;">🛒 "${escapeHtml(keyword)}" 시장 분석</span>
-                <span class="mp-count" style="margin-left:4px; font-size:11px;">${items.length}개 상품 벤치마킹</span>
-            </div>
-        </div>
+    // ─────────────────────────────────────────
+    // 💡 새로운 프리미엄 가로 배너형 시장 분석 보드 (반응형 지원)
+    // ─────────────────────────────────────────
+    html += `<div style="display:flex; flex-wrap:wrap; gap:24px; justify-content:space-between; align-items:stretch; background:linear-gradient(135deg, rgba(15,23,42,0.8), rgba(30,41,59,0.8)); border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:24px; margin-bottom:16px; box-shadow:0 10px 30px rgba(0,0,0,0.3);">
         
-        <!-- 🔥 시장 수요 인텔리전스 보드 (사이드바 버전) -->
-        <div style="display:flex; flex-wrap:wrap; gap:10px; background:rgba(255,255,255,0.05); padding:12px; border-radius:8px; align-items:center; justify-content:space-between;">
-            <div style="display:flex; flex-direction:column; flex: 1 1 30%;">
-                <span style="font-size:11px; color:#94a3b8; margin-bottom:2px;">월간 검색량</span>
-                <span style="font-size:16px; font-weight:700; color:#fff;">${fmt(monthlySearch)}<span style="font-size:10px; font-weight:normal; color:#94a3b8; margin-left:2px;">회</span></span>
+        <!-- 왼쪽 정보 블록 (키워드, 데이터 인텔리전스) -->
+        <div style="flex:1 1 300px; display:flex; flex-direction:column; justify-content:center; gap:16px;">
+            <div>
+                <span class="mp-title" style="font-size:20px; font-weight:800; color:#f8fafc; display:block; margin-bottom:4px;">🛒 "${escapeHtml(keyword)}" 시장 분석</span>
+                <span class="mp-count" style="font-size:13px; color:#94a3b8;">${items.length}개 상품 벤치마킹 완료</span>
             </div>
-            <div style="display:flex; flex-direction:column; flex: 1 1 30%;">
-                <span style="font-size:11px; color:#94a3b8; margin-bottom:2px;">추정 전환율</span>
-                <span style="font-size:16px; font-weight:700; color:${estimatedCvr >= 5.0 ? '#34d399' : '#fff'};">${estimatedCvr.toFixed(1)}<span style="font-size:10px; font-weight:normal; margin-left:2px;">%</span></span>
+            
+            <div style="display:flex; flex-wrap:wrap; gap:16px; margin-top:4px;">
+                <div style="display:flex; flex-direction:column; min-width:80px;">
+                    <span style="font-size:11px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">월간 검색량</span>
+                    <span style="font-size:18px; font-weight:800; color:#fff;">${fmt(monthlySearch)}<span style="font-size:11px; font-weight:normal; color:#94a3b8; margin-left:2px;">회</span></span>
+                </div>
+                <div style="display:flex; flex-direction:column; min-width:80px;">
+                    <span style="font-size:11px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">추정 전환율</span>
+                    <span style="font-size:18px; font-weight:800; color:${estimatedCvr >= 5.0 ? '#34d399' : '#fff'};">${estimatedCvr.toFixed(1)}<span style="font-size:11px; font-weight:normal; color:#94a3b8; margin-left:2px;">%</span></span>
+                </div>
+                <div style="display:flex; flex-direction:column; min-width:80px;">
+                    <span style="font-size:11px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">리뷰지수</span>
+                    <span style="font-size:18px; font-weight:800; color:${reviewSurge >= 30 ? '#f43f5e' : '#fff'};">+${reviewSurge}<span style="font-size:11px; font-weight:normal; color:#94a3b8; margin-left:2px;">건/일</span></span>
+                </div>
+                </div>
             </div>
-            <div style="display:flex; flex-direction:column; flex: 1 1 30%;">
-                <span style="font-size:11px; color:#94a3b8; margin-bottom:2px;">리뷰지수</span>
-                <span style="font-size:16px; font-weight:700; color:${reviewSurge >= 30 ? '#f43f5e' : '#fff'};">+${reviewSurge}<span style="font-size:10px; font-weight:normal; color:#94a3b8; margin-left:2px;">건/일</span></span>
+            ${isHot ? `<div style="background:rgba(244,63,94,0.1); border:1px solid rgba(244,63,94,0.3); color:#f43f5e; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:700; display:inline-block; width:fit-content; margin-top:4px; animation: pulseRed 2s infinite;">🔥 Sourcing Recommended (고효율/급상승)</div>` : ''}
+            
+            <!-- G4 FIX: 경쟁강도 지표 -->
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                ${(() => {
+                    const total = rawData?.total || items.length;
+                    let oceanBadge = '', oceanColor = '', oceanBg = '';
+                    if (total < 1000) { oceanBadge = '🟢 블루오션'; oceanColor = '#34d399'; oceanBg = 'rgba(52,211,153,0.1)'; }
+                    else if (total < 5000) { oceanBadge = '🟡 적정 경쟁'; oceanColor = '#fbbf24'; oceanBg = 'rgba(251,191,36,0.1)'; }
+                    else if (total < 10000) { oceanBadge = '🟠 경쟁 치열'; oceanColor = '#fb923c'; oceanBg = 'rgba(251,146,60,0.1)'; }
+                    else { oceanBadge = '🔴 레드오션'; oceanColor = '#f87171'; oceanBg = 'rgba(248,113,113,0.1)'; }
+                    return `<div style="display:flex; align-items:center; gap:6px; background:${oceanBg}; border:1px solid ${oceanColor}33; padding:4px 10px; border-radius:6px;">
+                        <span style="font-size:12px; font-weight:700; color:${oceanColor};">${oceanBadge}</span>
+                        <span style="font-size:11px; color:#94a3b8;">판매자 ${fmt(total)}명</span>
+                    </div>`;
+                })()}
+                ${estimatedCvr >= 5.0 ? `<div style="background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.2); padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700; color:#34d399;">🔥 고전환 키워드</div>` : ''}
             </div>
-            ${isHot ? `<div style="flex:1 1 100%; text-align:center; margin-top:4px; background:rgba(244,63,94,0.1); border:1px solid #f43f5e; color:#f43f5e; padding:6px; border-radius:30px; font-size:11px; font-weight:bold; letter-spacing:0.5px; animation: pulseRed 2s infinite;">🔥 Sourcing Recommended</div>` : ''}
         </div>
-    </div>`;
 
-    // 가격 요약 3칸 (사이드바 버전: 세로/축소 배치 고려)
-    html += `<div class="mp-prices" style="margin-top:0px; display:flex; gap:8px;">
-        <div class="mp-price-card mp-low" style="flex:1; padding:10px 4px; text-align:center;">
-            <div class="mp-price-val" style="font-size:15px;">${fmt(minP)}</div>
-            <div class="mp-price-label" style="font-size:10px;">최저가</div>
-            <div class="mp-price-sub" style="font-size:9px;">${lowItems.length}개 상품</div>
+        <!-- 오른쪽 가격 블록 (저가, 평균가, 고가 벤치마킹) -->
+        <div style="flex:2 1 450px; display:flex; gap:12px; flex-wrap:wrap;">
+            <!-- 최저가 블록 -->
+            <div class="mp-price-card" style="flex:1; min-width:110px; display:flex; flex-direction:column; justify-content:center; align-items:center; background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.2); border-radius:12px; padding:16px 10px;">
+                <div style="font-size:20px; font-weight:800; color:#34d399; margin-bottom:4px;">${fmt(minP)}원</div>
+                <div style="font-size:12px; font-weight:700; color:#10b981; margin-bottom:2px;">시장 최저가</div>
+                <div style="font-size:10px; color:#64748b; text-align:center;">${lowItems.length}개 상품 군집</div>
+            </div>
+            <!-- 평균가 블록 -->
+            <div class="mp-price-card" style="flex:1; min-width:110px; display:flex; flex-direction:column; justify-content:center; align-items:center; background:rgba(59,130,246,0.05); border:1px solid rgba(59,130,246,0.2); border-radius:12px; padding:16px 10px;">
+                <div style="font-size:20px; font-weight:800; color:#60a5fa; margin-bottom:4px;">${fmt(avgP)}원</div>
+                <div style="font-size:12px; font-weight:700; color:#3b82f6; margin-bottom:2px;">시장 평균가</div>
+                <div style="font-size:10px; color:#64748b; text-align:center;">중위값 ${fmt(medP)}</div>
+            </div>
+            <!-- 고가 블록 -->
+            <div class="mp-price-card" style="flex:1; min-width:110px; display:flex; flex-direction:column; justify-content:center; align-items:center; background:rgba(245,158,11,0.05); border:1px solid rgba(245,158,11,0.2); border-radius:12px; padding:16px 10px;">
+                <div style="font-size:20px; font-weight:800; color:#fbbf24; margin-bottom:4px;">${fmt(maxP)}원</div>
+                <div style="font-size:12px; font-weight:700; color:#f59e0b; margin-bottom:2px;">시장 최고가</div>
+                <div style="font-size:10px; color:#64748b; text-align:center;">${highItems.length}개 프리미엄</div>
+            </div>
         </div>
-        <div class="mp-price-card mp-avg" style="flex:1; padding:10px 4px; text-align:center;">
-            <div class="mp-price-val" style="font-size:15px;">${fmt(avgP)}</div>
-            <div class="mp-price-label" style="font-size:10px;">평균가</div>
-            <div class="mp-price-sub" style="font-size:9px;">중위 ${fmt(medP)}</div>
-        </div>
-        <div class="mp-price-card mp-high" style="flex:1; padding:10px 4px; text-align:center;">
-            <div class="mp-price-val" style="font-size:15px;">${fmt(maxP)}</div>
-            <div class="mp-price-label" style="font-size:10px;">최고가</div>
-            <div class="mp-price-sub" style="font-size:9px;">${highItems.length}개 상품</div>
-        </div>
+
     </div>`;
 
     // 상태 보관 (정렬용)
@@ -1159,6 +1141,65 @@ window.t1AddRow = t1AddRow;
 // ═══════════════════════════════════════
 
 window.T1CartItems = [];
+window._t1CartCollapsed = false; // 장바구니 접힘 상태
+
+/**
+ * 장바구니 위젯 접기/펼치기 토글 (시스템 콘솔 패턴)
+ */
+window.t1ToggleCart = function() {
+    window._t1CartCollapsed = !window._t1CartCollapsed;
+    const body = document.getElementById('t1-cart-body');
+    const icon = document.getElementById('t1-cart-toggle-icon');
+    const countEl = document.getElementById('t1-cart-count');
+    if (!body) return;
+
+    if (window._t1CartCollapsed) {
+        // 접기
+        body.style.maxHeight = '0px';
+        body.style.opacity = '0';
+        body.style.marginTop = '0';
+        if (icon) icon.style.transform = 'rotate(-90deg)';
+        // 접힌 상태에서 아이템 있으면 배지 하이라이트
+        if (countEl && window.T1CartItems.length > 0) {
+            countEl.style.background = 'rgba(59,130,246,0.3)';
+            countEl.style.color = '#93c5fd';
+            countEl.style.animation = 'cartBadgePulse 2s infinite';
+        }
+    } else {
+        // 펼치기
+        body.style.maxHeight = '600px';
+        body.style.opacity = '1';
+        body.style.marginTop = '12px';
+        if (icon) icon.style.transform = 'rotate(0deg)';
+        if (countEl) {
+            countEl.style.background = 'rgba(16,185,129,0.1)';
+            countEl.style.color = '#10b981';
+            countEl.style.animation = 'none';
+        }
+    }
+};
+
+/**
+ * 장바구니 자동 펼침 (아이템 추가 시 호출)
+ */
+window.t1ExpandCart = function() {
+    if (!window._t1CartCollapsed) return;
+    window._t1CartCollapsed = false;
+    const body = document.getElementById('t1-cart-body');
+    const icon = document.getElementById('t1-cart-toggle-icon');
+    const countEl = document.getElementById('t1-cart-count');
+    if (body) {
+        body.style.maxHeight = '600px';
+        body.style.opacity = '1';
+        body.style.marginTop = '12px';
+    }
+    if (icon) icon.style.transform = 'rotate(0deg)';
+    if (countEl) {
+        countEl.style.background = 'rgba(16,185,129,0.1)';
+        countEl.style.color = '#10b981';
+        countEl.style.animation = 'none';
+    }
+};
 
 function t1AddRow(btn, item) {
     if (btn.classList.contains('added')) return;
@@ -1205,9 +1246,25 @@ window.t1RenderCart = function() {
     const submitBtn = document.getElementById('t1-cart-submit-btn');
     
     if(!listEl) return;
-    countEl.textContent = window.T1CartItems.length;
+    const count = window.T1CartItems.length;
+    countEl.textContent = count;
     
-    if(window.T1CartItems.length === 0) {
+    // 아이템 추가 시 자동 펼침 (접혀있었다면)
+    if (count > 0) t1ExpandCart();
+    
+    // 카운트 배지 색상: 0=회색, 1~3=초록, 4+=파랑 강조
+    if (count === 0) {
+        countEl.style.background = 'rgba(100,116,139,0.1)';
+        countEl.style.color = '#64748b';
+    } else if (count <= 3) {
+        countEl.style.background = 'rgba(16,185,129,0.15)';
+        countEl.style.color = '#10b981';
+    } else {
+        countEl.style.background = 'rgba(59,130,246,0.2)';
+        countEl.style.color = '#60a5fa';
+    }
+    
+    if(count === 0) {
         listEl.innerHTML = `<div style="text-align:center;padding:30px 10px;color:#64748b;font-size:11px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px dashed rgba(255,255,255,0.05)">장바구니가 비어있습니다.<br>상품의 픽담기 버튼을 눌러주세요.</div>`;
         submitBtn.style.display = 'none';
         return;

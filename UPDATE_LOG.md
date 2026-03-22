@@ -1,6 +1,21 @@
 # Seller Dashboard UPDATE LOG
 
-## [2026-03-22] 탭 상태 유지(Persistence) 및 SEO 상품명 생성기(T5) GAS 연동 완료
+## [2026-03-22] 클리퍼(Clipper) 고도화 및 도매꾹 API, 알리프라이스 브릿지, 쿠팡 SPA 대응 완료
+
+### 🚀 클리퍼 확장 체계 및 알리프라이스 브릿지 연동
+- **Iframe 브릿지 통신 개선**: `chrome-extension-clipper`의 Content Script와 백그라운드 워커를 최적화하여 대시보드 Iframe 내부로의 클리퍼 중첩 생성을 방지.
+- **알리프라이스 도메인 지원**: `content.js`의 `extractPageData()` 함수에 `aliprice.com` 스크래핑 로직을 탑재하여 알리프라이스 타겟 소싱 리스트 추출 및 렌더링 지원.
+- **모바일/작은 화면 레이아웃 최적화**: `t1-feed.css` 모바일뷰 미디어 쿼리 작업 + T1 가림 현상 해결을 위한 플로팅 버튼 우측 상단 이동 완료.
+
+### 🚀 사이드 패널 내 도매꾹 API 원스톱 마진 계산 연동
+- **`js/t1-sourcing.js`의 `t1ExtractFromUrl()` 개편**: 도매꾹 URL은 물론, 단순 상품번호(숫자)만 입력하더라도 `domeggookProxy` API를 태워 원가, 재고를 뽑아냄.
+- **마진 시뮬레이터 실시간 주입**: 벌크 리스트에 담는 것에 그치지 않고, 그 즉시 T2 탭(온라인 위탁 시뮬레이터)을 띄우고 `product-name`, `cost`, `sale-price` 인풋 폼에 DOM을 직접 주입한 뒤 `t2RecalcMargin()` 트리거 발동. 창 전환 없이 원스톱 마진 방어 모의연산 스펙 완성.
+
+### 🛡️ 쿠팡 SPA(리액트) 환경 클리퍼 생존성 보장
+- **`MutationObserver` 적용**: 기존 1초 주기 `setInterval` 억지로 끼워넣기 로직을 폐쇄.
+- SPA 사이트(쿠팡 등)에서 카테고리/페이지 탐색 시 발생하는 DOM 노드 삭제를 감지 즉시(O.1초 이내) 툴바와 모달 오버레이를 복원시키는 무적 감시자 로직 탑재 완료.
+
+---## [2026-03-22] 탭 상태 유지(Persistence) 및 SEO 상품명 생성기(T5) GAS 연동 완료
 
 ### 🚀 Phase 1: 탭 상태 유지(Persistence) 복구
 - **문제**: 새로고침 시 항상 기본 탭(T1)으로 초기화되어 작업 컨텍스트가 날아가는 현상 발생.

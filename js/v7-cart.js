@@ -195,7 +195,129 @@ window.exportCartToT2 = function() {
 // 레거시 호환 alias
 window.batchTransferToT2 = window.exportCartToT2;
 
-// ═══════════════ 5. 초기화 ═══════════════
+// ═══════════════ 5. 초기화 및 크롬 확장프로그램 연동 ═══════════════
 if (typeof SystemLogger !== 'undefined') {
   SystemLogger.log('🛒 V7 장바구니 + 프라이싱 연산 엔진 로드 완료', 'success');
 }
+
+// 6. 클리퍼 봇(현장 요원) -> 사이드 패널(지휘소) 직통 통신 로직 병합
+function processClipperItemToCart(item) {
+    console.log("📥 [장바구니 로직] 클리퍼 요원으로부터 데이터 처리 시작:", item);
+    
+    // ★ [1688 플랫폼 감지 + 위안화 변환 인터페이스]
+    const platform = (item.market || '').toLowerCase();
+    const is1688 = platform === '1688' || (item.link || '').includes('1688.com');
+    const isTaobao = platform === 'taobao' || (item.link || '').includes('taobao.com');
+    const isCoupang = platform === 'coupang' || (item.link || '').includes('coupang.com');
+    
+    // 플랫폼별 아이콘 매핑
+    const platformIcons = {
+        'coupang':    '🟠',
+        'smartstore': '🟢',
+        '1688':       '🇨🇳',
+        'taobao':     '🧧',
+        'domeggook':  '📦',
+        'aliprice':   '🌐'
+    };
+    const platformIcon = platformIcons[platform] || '🏪';
+    
+    // 1688/타오바오: 위안화→원화 자동 환산 (TODO: 환율 API 실시간 연동)
+    let costKRW = item.cost || item.salePrice || 0;
+    let originalCurrency = 'KRW';
+    if (is1688 || isTaobao) {
+        const CNY_TO_KRW = 195; // 기본 환율 (향후 fx-ticker 실시간 연동)
+        // 가격이 원화 기준 1000원 미만이면 위안화로 간주
+        if (costKRW > 0 && costKRW < 1000) {
+            originalCurrency = 'CNY';
+            costKRW = Math.round(costKRW * CNY_TO_KRW);
+            console.log(`🇨🇳 [1688 환산] ¥${item.cost} × ${CNY_TO_KRW} = ₩${costKRW}`);
+        }
+    }
+    
+    // 클리퍼의 Payload를 대시보드 내부 장바구니 모델로 매핑변환 (Adapter)
+    const cartItem = {
+        _idx: item.id,
+        productId: item.id,
+        title: item.name,
+        name: item.name,
+        lprice: costKRW,
+        wholesale_price: costKRW,
+        retail_price: item.salePrice || 0,
+        image: item.imageUrl,
+        thumbnail_url: item.imageUrl,
+        link: item.link,
+        mallName: item.market,
+        sourcing_type: (item.savedBy || '').includes('Tr.B') ? 'drop' : 'benchmark',
+        _margin: 0,
+        // 플랫폼 메타
+        platformIcon: platformIcon,
+        originalCurrency: originalCurrency,
+        originalPrice: item.cost || 0,
+        // 타사 인텔리전스(해킹) 데이터 보존
+        intel: item.thirdPartyIntel || {},
+        // ★ [신규] 쿠팡 메타데이터 보존
+        coupangMeta: isCoupang ? (item.coupangMeta || {}) : undefined,
+        // 원본 메타데이터 보존
+        sourceText: item.sourceText || '',
+        category: item.category || '',
+        savedBy: item.savedBy || '',
+        receivedAt: new Date().toISOString()
+    };
+    
+    // 1. 지도/패널 전역 장바구니 객체에 강제 주입 (실시간 UI용)
+    window.sourcingCart.set(cartItem._idx, cartItem);
+    
+    // 2. ★ [FIX] localStorage에도 영구 저장 — 새로고침 시 데이터 유실 방지
+    try {
+        let t2Items = JSON.parse(localStorage.getItem('v5_t2_sourcing_items') || '[]');
+        // 중복 방지
+        if (!t2Items.find(i => String(i._idx || i.productId || i.id) === String(cartItem._idx))) {
+            t2Items.push(cartItem);
+            localStorage.setItem('v5_t2_sourcing_items', JSON.stringify(t2Items));
+            console.log("💾 [영구 저장] 클리퍼 데이터 → localStorage 저장 완료:", cartItem.name);
+        }
+    } catch(e) {
+        console.error('localStorage 저장 오류:', e);
+    }
+    
+    // 3. T2 Pending Queue UI가 열려있다면 즉시 리렌더링
+    if (typeof t2ShowPendingQueue === 'function') {
+        // T2 state도 동기화
+        if (typeof T2 !== 'undefined' && T2.pendingQueue) {
+            T2.pendingQueue.push(cartItem);
+        }
+        t2ShowPendingQueue();
+    }
+    if (typeof t2RenderDashboard === 'function') {
+        t2RenderDashboard();
+    }
+    
+    // 4. 장바구니 UI 즉시 리렌더링 (화면 갱신)
+    if (typeof window.renderCartUI === 'function') {
+        window.renderCartUI();
+    }
+    
+    // 5. 성공 토스트 알림
+    if (typeof showToast === 'function') {
+        showToast(`✅ [${item.market || '클리퍼'}] 상품 수집 완료!`, "장바구니 + T2 대기열에 저장됨");
+    }
+}
+
+// [네이티브 확장프로그램 직접 구동 시의 레거시 호환 리스너]
+if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        if (request.action === 'CLIP_PRODUCT_TO_PANEL') {
+            processClipperItemToCart(request.data);
+            sendResponse({ status: 'success', message: '사이드 패널 병합 완료' });
+        }
+        return true; 
+    });
+}
+
+// [Iframe Bridge 구동 시의 메시지 수신 리스너 (강력한 CSP 우회용)]
+window.addEventListener('message', (event) => {
+    // 보안상 event.origin 체크 가능하나, 확장프로그램 내부 통신이므로 유연하게 접근
+    if (event.data && event.data.type === 'EXT_CLIP') {
+        processClipperItemToCart(event.data.payload);
+    }
+});

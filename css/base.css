@@ -187,7 +187,7 @@
 
 
   @media (min-width: 600px) {
-    .page { padding: 24px 28px; }
+    .page { padding: 12px 16px; }
     .product-cards { grid-template-columns: repeat(2, 1fr); }
   }
 
@@ -310,4 +310,49 @@
     color: #4ade80 !important;
     border-bottom-color: #4ade80 !important;
     background: rgba(74, 222, 128, 0.06) !important;
+}
+
+/* ═══ 사이드 패널(모바일) 전용 여백 다이어트 (UI/UX 빡빡함 해소) ═══ */
+@media (max-width: 600px) {
+    /* 1. 상단 헤더 슬림화 */
+    header { padding: 10px 14px; }
+    
+    /* 2. 메인 페이지 콘텐츠 여백 대폭 감소 */
+    .page { padding: 8px 10px; }
+    
+    /* 3. 내부 주요 간격 축소 */
+    .calc-container { gap: 10px; }
+    
+    /* 4. 알림창 크기 축소 */
+    .toast { min-width: 260px; padding: 12px 16px; margin-bottom: 70px; }
+    
+    /* 5. AI 요원 & 시스템 콘솔 위치 이동 (하단 탭바 가림 방지 -> 우측 상단 배치) */
+    #sys-console-fab {
+        top: 60px !important;
+        bottom: auto !important;
+        right: 12px !important;
+        left: auto !important;
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 14px !important;
+        border-radius: 10px !important;
+        z-index: 9500 !important;
+    }
+    #ai-agent-toggle-btn {
+        top: 104px !important; 
+        bottom: auto !important;
+        right: 12px !important;
+        width: 42px !important;
+        height: 42px !important;
+        font-size: 18px !important;
+        z-index: 9500 !important;
+    }
+    #ai-agent-widget { 
+        top: 70px !important; 
+        bottom: auto !important; 
+        right: 10px !important; 
+        width: calc(100% - 20px) !important; 
+        height: calc(100vh - 160px) !important; 
+        z-index: 10000 !important; 
+    }
 }

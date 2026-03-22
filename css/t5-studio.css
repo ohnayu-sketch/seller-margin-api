@@ -52,7 +52,7 @@
 .t5-preview-header { display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(22,25,32,0.9);border-bottom:1px solid rgba(255,255,255,0.06); }
 .t5-preview-header span { font-size:12px;font-weight:500;color:#e2e8f0; }
 .t5-char-count { font-size:10px;color:var(--text-muted); }
-#t5-preview-frame { width:100%;min-height:600px;border:none;background:#fff;display:block;margin:0 auto;transition:max-width 0.3s; }
+#t5-preview-frame { width:100%;min-height:850px;border:none;background:#fff;display:block;margin:0 auto;transition:max-width 0.3s; }
 
 /* ── 대기열 ── */
 .t5-queue-list { display:flex;flex-direction:column;gap:4px; }

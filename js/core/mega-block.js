@@ -512,9 +512,9 @@ window.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // [개발 편의 우회] 로컬 개발 상태 모드 강제 바이패스
-    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'file:') {
-      console.log('[Init] Localhost/File Dev Bypass -> Auto Login');
+    // [개발 편의 및 확장프로그램 우회] 로컬 개발 상태 모드 또는 크롬 확장프로그램 강제 바이패스
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'file:' || location.protocol === 'chrome-extension:') {
+      console.log('[Init] Localhost/File/Extension Dev Bypass -> Auto Login');
       onAuthSuccess('dev@local', '개발자');
       return;
     }

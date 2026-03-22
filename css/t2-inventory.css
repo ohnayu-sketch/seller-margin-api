@@ -114,9 +114,32 @@
 .t2-c-warn { color:#f59e0b !important; }
 .t2-c-red { color:#ef4444 !important; }
 
-/* ── 2단 레이아웃 ── */
-.t2-layout { display:grid;grid-template-columns:380px 1fr;gap:16px; }
+/* ── 3단 레이아웃 (시장조사 고정 패널 추가) ── */
+.t2-layout { display:grid;grid-template-columns:300px 380px 1fr;gap:16px; }
+@media (max-width:1200px) { .t2-layout { grid-template-columns:380px 1fr; } #t2-reference-panel { display:none !important; } }
 @media (max-width:900px) { .t2-layout { grid-template-columns:1fr; } }
+
 .t2-panel { background:var(--surface,rgba(22,25,32,0.85));border-radius:10px;border:1px solid var(--border);padding:14px;margin-bottom:14px; }
 .t2-panel-header { font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px; }
 .t2-section-header { font-size:12px;font-weight:600;margin:10px 0 6px;display:flex;align-items:center;gap:4px; }
+
+/* ── 레퍼런스(Tr.A) 패널 스타일 ── */
+#t2-reference-panel {
+    position: sticky;
+    top: 130px; /* 헤더와 탭 높이 고려 */
+    align-self: start;
+    height: calc(100vh - 150px);
+    overflow-y: auto;
+    border-color: rgba(168, 85, 247, 0.4);
+    box-shadow: inset 0 0 20px rgba(168, 85, 247, 0.05);
+}
+#t2-reference-panel::-webkit-scrollbar { width:4px; }
+#t2-reference-panel::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:4px; }
+.t2-ref-img { width:100%; height:200px; border-radius:8px; overflow:hidden; margin-bottom:12px; border:1px solid rgba(255,255,255,0.1); }
+.t2-ref-img img { width:100%; height:100%; object-fit:cover; }
+.t2-ref-title { font-size:13px; font-weight:700; line-height:1.4; margin-bottom:8px; color:#f1f5f9; }
+.t2-ref-price { font-size:20px; font-weight:800; color:#a855f7; margin-bottom:16px; }
+.t2-ref-box { padding:10px; border-radius:8px; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.05); margin-bottom:10px; }
+.t2-ref-box-label { font-size:10px; color:var(--text-muted); margin-bottom:4px; font-weight:600; }
+.t2-ref-box-val { font-size:12px; color:#e2e8f0; line-height:1.5; }
+.t2-ref-badge { display:inline-block; padding:3px 8px; border-radius:12px; background:rgba(239,68,68,0.1); color:#ef4444; font-size:10px; font-weight:600; margin-right:4px; margin-bottom:4px; border:1px solid rgba(239,68,68,0.3); }

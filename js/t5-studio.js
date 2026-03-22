@@ -73,10 +73,55 @@ function t5ReceiveProduct(data) {
         showToast(`💡 도매가 ${fmt(data.wholesale_price)}원 / 마진 ${margin}%`);
     }
 
-    t5UpdatePreview();
+    // 클리퍼에서 넘어온 벤치마킹 사이트(도매/마켓) 스크립트 및 텍스트 메타데이터 저장
+    T5.currentSourceText = data.sourceText || '';
+
+    // 제목/키워드 기반 카테고리(테마) 자동 추론 및 변경 (Auto-Slotting 핵심)
+    const suggestedTpl = t5DeduceTemplate(data.name || '');
+    if (suggestedTpl && suggestedTpl !== T5.template) {
+        showToast(`💡 상품명 기반 자동 템플릿 추천: '${TEMPLATES[suggestedTpl].name}' 적용`);
+        t5SetTemplate(suggestedTpl);
+    } else {
+        t5UpdatePreview();
+    }
 
     // 자동 AI 카피 트리거
     if (data.name) setTimeout(() => t5GenerateAICopy(), 500);
+}
+
+// ─── 카테고리 기반 템플릿 자동 추론 ───
+function t5DeduceTemplate(productName) {
+    if (!productName) return 'clean';
+    const text = productName.toLowerCase();
+    
+    // 키워드 사전
+    const categories = {
+        food: ['식품', '간식', '과자', '김치', '커피', '원두', '유기농', '우유', '빵', '고기', '과일', '야채', '음료', '차', '밀키트', '영양제', '건강', '홍삼'],
+        kids: ['장난감', '아기', '유아', '어린이', '키즈', '임산부', '맘', '기저귀', '장난감', '블록', '동화', '인형', '모빌'],
+        nature: ['화장품', '스킨케어', '뷰티', '바디', '헤어', '로션', '크림', '에센스', '세럼', '마스크팩', '여성용품', '생리대', '향수', '디퓨저', '아로마', '식물', '화분', '원예'],
+        tech: ['전자기기', '스마트폰', '컴퓨터', '노트북', '태블릿', '이어폰', '헤드폰', '마우스', '키보드', '충전기', '케이블', '모니터', '가전', '청소기', '선풍기', '블루투스', '카메라', '드릴', '공구', '차량용', '블랙박스'],
+        premium: ['골프', '명품', '시계', '지갑', '가죽', '프리미엄', '한우', '위스키', '와인', '정장', '예물', '다이아'],
+        trendy: ['패션', '의류', '여성복', '남성복', '스트릿', '신발', '스니커즈', '모자', '액세서리', '주얼리', '가방', '백', '선글라스', '수영복', '폰케이스'],
+        minimal: ['인테리어', '가구', '책상', '의자', '조명', '러그', '커튼', '침구', '이불', '수납', '정리', '무지', '심플', '문구', '다이어리', '디자인'],
+        clean: ['생활가전', '주방가전', '냄비', '후라이팬', '그릇', '접시', '수저', '수건', '세제', '섬유유연제', '화장지', '물티슈', '치약', '칫솔', '샴푸', '바디워시']
+    };
+
+    // 점수 시스템으로 가장 일치하는 테마 선정
+    let bestTpl = 'clean';
+    let maxScore = 0;
+
+    for (const [tpl, kws] of Object.entries(categories)) {
+        let score = 0;
+        kws.forEach(kw => {
+            if (text.includes(kw)) score++;
+        });
+        if (score > maxScore) {
+            maxScore = score;
+            bestTpl = tpl;
+        }
+    }
+    
+    return maxScore > 0 ? bestTpl : 'clean';
 }
 
 function t5ReceiveBulkQueue(items) {
@@ -166,6 +211,33 @@ function t5GenerateHTML(inputs, templateKey, marketKey) {
     // SEO 키워드
     const seoMeta = T5.seoKeywords.length ? `<meta name="keywords" content="${T5.seoKeywords.join(',')}">` : '';
 
+    // 신뢰 근거 섹션 HTML
+    const trustHTML = `<div class="trust-section">
+        <h2 class="section-title" style="font-size:22px;">🛡️ 안심 구매 보장</h2>
+        <div class="trust-grid">
+            <div class="trust-card">
+                <div class="trust-icon">✅</div>
+                <div class="trust-title">정품 보증</div>
+                <div class="trust-desc">공식 인증 제품만 취급합니다</div>
+            </div>
+            <div class="trust-card">
+                <div class="trust-icon">🚚</div>
+                <div class="trust-title">빠른 배송</div>
+                <div class="trust-desc">오후 2시 전 주문 시 당일 출고</div>
+            </div>
+            <div class="trust-card">
+                <div class="trust-icon">🔄</div>
+                <div class="trust-title">무료 반품</div>
+                <div class="trust-desc">수령 후 7일 이내 무료 교환·반품</div>
+            </div>
+            <div class="trust-card">
+                <div class="trust-icon">💬</div>
+                <div class="trust-title">1:1 상담</div>
+                <div class="trust-desc">카카오톡 / 전화 빠른 응대</div>
+            </div>
+        </div>
+    </div>`;
+
     return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -218,6 +290,14 @@ img { width: 100%; max-width: 100%; display: block; height: auto; border: 0; }
 .usp-title { font-size: 18px; font-weight: 700; color: var(--text-color); margin-bottom: 8px; line-height: 1.4; }
 .usp-desc { font-size: 15px; color: var(--muted-color); line-height: 1.6; }
 
+/* Trust Section */
+.trust-section { padding: 60px 40px; background: var(--feature-bg); border-top: 1px solid var(--border-color); }
+.trust-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.trust-card { text-align: center; padding: 24px 12px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color); }
+.trust-icon { font-size: 28px; margin-bottom: 8px; }
+.trust-title { font-size: 15px; font-weight: 700; color: var(--text-color); margin-bottom: 4px; }
+.trust-desc { font-size: 12px; color: var(--muted-color); line-height: 1.4; }
+
 /* Layout & CTA */
 .gallery { display: flex; flex-direction: column; }
 .img-wrap { width: 100%; margin: 0; }
@@ -259,6 +339,9 @@ img { width: 100%; max-width: 100%; display: block; height: auto; border: 0; }
     <div class="gallery">
         ${extraImages}
     </div>
+
+    <!-- Trust Evidence Section -->
+    ${trustHTML}
 
     <!-- CTA & Footer -->
     ${ctaHTML}
@@ -318,7 +401,7 @@ async function t5GenerateAICopy() {
         const payload = {
             title: nameEl.value,
             price: document.getElementById('t5-price')?.value || 0,
-            sourceText: window.T5ImageAuto?.sourceText || '',
+            sourceText: T5.currentSourceText || window.T5ImageAuto?.sourceText || '', // 도매/시장 데이터 즉각 활용 (사용자 피드백)
             competitorFlaws: document.getElementById('t5-competitor-flaws')?.value || '',
             // (추후 네이버 3위 랭커 데이터 연동 가능)
             targetCompetitors: []
@@ -360,16 +443,39 @@ async function t5GenerateAICopy() {
 }
 
 function t5LocalCopy(name) {
-    const templates = [
-        `✨ ${name}\n\n일상을 특별하게 만들어줄 ${name}! 높은 품질과 세련된 디자인으로 당신의 라이프스타일을 업그레이드하세요.`,
-        `🎯 ${name}\n\n지금 이 가격에 이 품질? 믿을 수 없는 가성비! ${name}으로 현명한 소비를 경험하세요.`,
-        `💫 ${name}\n\n수많은 리뷰가 증명하는 만족도! ${name}과 함께하는 매일이 달라집니다.`,
+    // ★ 상위 셀러 패턴 기반 4단계 프레임워크 (Hook → Problem → Solution → CTA)
+    const hooks = [
+        `"${name}" 하나로 달라지는 일상`,
+        `왜 이 ${name}만 반복 구매율 87%일까?`,
+        `SNS에서 난리난 ${name}, 직접 써봤습니다`,
+        `${name} 고르기 전에 반드시 알아야 할 것`,
     ];
-    return templates[Math.floor(Math.random() * templates.length)];
+    const problems = [
+        `많은 분들이 비슷한 제품을 사고 실망합니다.\n저렴한 가격에 혹해서 구매했다가 품질에 실망하고,\n결국 또 다른 제품을 찾아 헤매게 되죠.`,
+        `시중에 넘쳐나는 유사 제품들.\n하지만 실제로 만족스러운 건 손에 꼽습니다.\n"이번엔 다르겠지" 하고 구매해도 후회하기 일쑤...`,
+        `가격만 보고 고르면 결국 두 번 삽니다.\n품질, 내구성, A/S까지 꼼꼼하게 따져야\n진짜 가성비 좋은 제품을 만날 수 있습니다.`,
+    ];
+    const solutions = [
+        `바로 이 ${name}이 그 답입니다.\n\n엄선된 소재와 꼼꼼한 품질 관리로\n 한번 쓰면 다른 제품으로 돌아갈 수 없습니다.\n 이미 수천 명이 선택한 이유, 직접 확인해보세요.`,
+        `저희 ${name}은 다릅니다.\n\n✅ 프리미엄 소재 — 오래 써도 처음 그대로\n✅ 꼼꼼한 검수 — 불량률 0.1% 미만\n✅ 합리적 가격 — 중간 마진 없는 직거래`,
+    ];
+    const ctas = [
+        `지금 바로 경험해보세요.\n한정 수량이 소진되면 다음 입고까지 기다리셔야 합니다.`,
+        `오늘 주문하시면 내일 바로 만나보실 수 있습니다.\n🚚 당일출고 | 🔄 7일 무료 반품 | 💰 최저가 보장`,
+    ];
+
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    return `【 ${pick(hooks)} 】\n\n${pick(problems)}\n\n✨ ${pick(solutions)}\n\n${pick(ctas)}`;
 }
 
 function t5LocalFeatures(name) {
-    return `프리미엄 소재로 오래 사용 가능\n세련된 디자인으로 어디서든 활용\n가성비 최고 — 합리적인 가격\n빠른 배송 — 주문 후 1~2일 내 도착\n안심 교환/반품 7일 보장`;
+    return [
+        `✔ 프리미엄 소재\n  - 엄선된 원자재로 내구성과 촉감 모두 만족`,
+        `✔ 정밀 품질 관리\n  - 3단계 검수 시스템으로 불량률 0.1% 미만 달성`,
+        `✔ 합리적인 가격\n  - 유통 마진을 줄여 최저가 수준의 합리적 가격 실현`,
+        `✔ 빠른 배송\n  - 오후 2시 이전 주문 시 당일 출고, 1~2일 내 수령`,
+        `✔ 안심 교환/반품\n  - 수령 후 7일 이내 무료 반품, 교환비 판매자 부담`,
+    ].join('\n\n');
 }
 
 // ─── 복사/다운로드 ───

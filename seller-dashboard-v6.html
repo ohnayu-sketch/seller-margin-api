@@ -24,6 +24,16 @@
 <script src="js/core/block-4.js"></script>
 <script src="js/core/block-5.js"></script>
 <script src="js/t5-studio.js"></script>
+<!-- [T3 Builder] 상세페이지 이미지 빌더 -->
+<script src="js/t3-detail-templates.js"></script>
+<script src="js/t3-detail-builder.js"></script>
+<!-- [T3 Builder] html2canvas for PNG export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- [T3 Builder] Pretendard 폰트 CDN -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net"/>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet"/>
+<!-- [FIX] T2 마진/인벤토리 모듈 스크립트 연결 복구 -->
+<script src="js/t2-inventory.js"></script>
 <script src="js/core/mega-block.js"></script>
 
 <!-- [REMOVED] 중복 head 태그 (원래 L7474~7482): 파일 상단에 이미 동일 태그 존재. body 내부 중복 삽입으로 파서 교란 원인 -->
@@ -39,6 +49,7 @@
 <!-- [V7] 공통 컴포넌트 + 피드 CSS -->
 <link rel="stylesheet" href="css/ui-components.css">
 <link rel="stylesheet" href="css/t1-feed.css">
+<script src="js/t1-forecast.js" defer></script>
 <!-- [Phase 4] Infrastructure: GASAdapter, ImageResizer, StateManagers -->
 <script src="js/core/infra.js"></script>
 <!-- [Phase 2 & 3] EventBus & StateManager -->
@@ -144,6 +155,9 @@ function hideStudioOverlay() {
   <span title="유럽 유로">🇪🇺 €<span id="fx-eur" style="font-weight:700;color:var(--text);">--</span></span>
 </div>
 <div class="header-right">
+<!-- 플로팅 위젯 토글 -->
+<button onclick="toggleFloatingWidgets()" id="fab-toggle-btn" title="알바봇/콘솔 위젯 숨기기" style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px 6px;margin-right:4px;">👁️</button>
+
 <!-- 알림 벨 -->
 <div id="alert-bell-wrap" style="position:relative;display:inline-flex">
     <button class="bell-btn" onclick="typeof AlertBell!=='undefined'&&AlertBell.toggle()" title="알림" style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px 6px;color:#fbbf24">🔔</button>
@@ -227,73 +241,103 @@ function hideStudioOverlay() {
 }
 </style>
 <div class="t1-pipeline-header">
-    <button class="pipe-tab active" data-mode="trend" onclick="typeof t1SwitchPipe==='function'&&t1SwitchPipe('trend')">🔮 1. 시스템 추천 (트렌드)</button>
-    <button class="pipe-tab" data-mode="search" onclick="typeof t1SwitchPipe==='function'&&t1SwitchPipe('search')">🎯 2. 정밀 키워드 검색</button>
-    <button class="pipe-tab" data-mode="bulk" onclick="typeof t1SwitchPipe==='function'&&t1SwitchPipe('bulk')">📦 3. 대량 엑셀 소싱</button>
+    <button class="pipe-tab active" data-mode="integrated" onclick="typeof t1SwitchPipe==='function'&&t1SwitchPipe('integrated')">🔍 1. 소싱 레이더 (Discovery)</button>
+    <button class="pipe-tab" data-mode="bulk" onclick="typeof t1SwitchPipe==='function'&&t1SwitchPipe('bulk')">📥 2. 수집 대기열 (Inbox)</button>
 </div>
 
 <div class="wide-layout" id="t1-wide-layout" style="display:block;">
     <!-- ═══ 우측 메인 (전체 화면 사용) ═══ -->
     <div class="right-main" style="width:100%;">
         
-        <!-- View 1: 트렌드 피드 (기본 활성) -->
-        <div id="t1-main-trend-content" style="display:block;">
-            <!-- 위탁/사입 구분 탭은 예측 키워드 보드 단계에서는 불필요하므로 삭제/숨김 처리됨 -->
-            <div class="t1-subtab-bar" id="t1-subtab-bar" style="display:none;">
-                <button class="t1-subtab active" data-mode="drop" onclick="t1SetSourcingMode('drop')">🟢 위탁 소싱</button>
-                <button class="t1-subtab" data-mode="bulk" onclick="t1SetSourcingMode('bulk')">📦 사입 소싱</button>
-            </div>
-
-        <div class="feed-header" style="display:none;">
-            <h3 style="font-size:13px;font-weight:700" id="t1-feed-title">지금 소싱하면 좋은 상품</h3>
-            <span class="feed-count" id="t1-feed-count" style="font-size:9px;color:#64748b"></span>
-        </div>
-
-        <!-- 필터 + 정렬 -->
-        <div class="feed-filter-bar">
-            <button class="feed-filter active" onclick="typeof t1FeedSetFilter==='function'&&t1FeedSetFilter('ALL',this)">전체</button>
-            <button class="feed-filter" onclick="typeof t1FeedSetFilter==='function'&&t1FeedSetFilter('소싱추천',this)" style="color:#10b981">소싱추천</button>
-            <button class="feed-filter" onclick="typeof t1FeedSetFilter==='function'&&t1FeedSetFilter('지켜보기',this)" style="color:#f59e0b">지켜보기</button>
-            <button class="feed-filter" onclick="typeof t1FeedSetFilter==='function'&&t1FeedSetFilter('급상승',this)">급상승</button>
-            <button class="feed-filter" onclick="typeof t1FeedSetFilter==='function'&&t1FeedSetFilter('고마진',this)">고마진</button>
-            <select class="feed-sort" onchange="typeof t1FeedSetSort==='function'&&t1FeedSetSort(this.value)" style="margin-left:auto;padding:3px 7px;border-radius:5px;border:1px solid rgba(255,255,255,0.05);background:rgba(22,25,32,0.6);color:#94a3b8;font-size:9px">
-                <option value="margin_desc">마진 높은순</option>
-                <option value="trend_desc">검색 급상승순</option>
-                <option value="search_desc">검색량 많은순</option>
-                <option value="price_asc">도매가 낮은순</option>
-            </select>
-        </div>
-
-        <!-- 상품 그리드 (JS가 렌더링) -->
-        <div id="t1-feed-grid" class="feed-grid">
-            <div style="text-align:center;padding:40px;color:#64748b;font-size:12px;grid-column:1/-1">상품 피드 로딩 중...</div>
-        </div>
-
-        <!-- 페이지네이션 -->
-        <div id="t1-feed-pagination" class="feed-pagination"></div>
-        </div> <!-- /#t1-main-trend-content -->
-
-        <!-- View 2: 정밀 키워드 검색 모드 -->
-        <div id="t1-main-search-content" style="display:none; flex-direction:column; gap:20px;">
-            <div class="pipe-search-container" style="padding:40px 20px; background:rgba(15,23,42,0.6); border-radius:16px; border:1px solid rgba(255,255,255,0.05); text-align:center;">
-                <h2 style="font-size:24px; font-weight:800; color:#f1f5f9; margin-bottom:8px;">키워드로 시장 정밀 분석</h2>
-                <div style="font-size:13px; color:#94a3b8; margin-bottom:24px;">머릿속에 있는 키워드나 상품명을 검색하여 시장 단가를 즉시 확인하세요.</div>
+        <!-- View 1: 통합 소싱 보드 (검색 + 트렌드 + 상품피드) -->
+        <div id="t1-main-integrated-content" style="display:flex; flex-direction:column; gap:20px;">
+            
+            <!-- 항상 상단에 고정되는 통합 검색창 -->
+            <div class="pipe-search-container" style="padding:40px 20px 30px; background:rgba(15,23,42,0.6); border-radius:16px; border:1px solid rgba(255,255,255,0.05); text-align:center;">
+                <h2 style="font-size:24px; font-weight:800; color:#f1f5f9; margin-bottom:8px;">스마트 통합 소싱 검색</h2>
+                <div style="font-size:13px; color:#94a3b8; margin-bottom:24px;">키워드를 검색하면 시장 단가와 매칭되는 도매 상품을 즉시 찾아줍니다.</div>
                 <div style="display:flex; max-width:600px; margin:0 auto; gap:8px;">
                     <input class="lp-search-input" id="t1-feed-search" placeholder="검색어 입력... (예: 미니 선풍기)" onkeydown="if(event.key==='Enter')typeof t1FeedSearch==='function'&&t1FeedSearch()" style="flex:1; padding:16px 20px; font-size:16px; border-radius:12px; border:2px solid rgba(59,130,246,0.3); background:rgba(0,0,0,0.2); color:#fff; box-shadow:0 10px 25px rgba(0,0,0,0.2) inset;">
                     <button class="lp-search-btn" onclick="typeof t1FeedSearch==='function'&&t1FeedSearch()" style="padding:0 32px; font-size:16px; font-weight:700; border-radius:12px; background:#3b82f6; color:#fff; border:none; cursor:pointer; box-shadow:0 10px 20px rgba(59,130,246,0.3);">검색 분석</button>
                 </div>
             </div>
-            <!-- 검색 결과 표시 영역 (JS 동적 렌더링 시 사용될 Placeholder) -->
-            <div id="t1-search-results-area" style="display:flex; flex-direction:column; gap:16px;">
-                <div style="text-align:center; padding:60px 0; color:#64748b; font-size:14px; border:1px dashed rgba(255,255,255,0.1); border-radius:12px;">검색어를 입력하면 경쟁사 분석 및 도매 원가가 표시됩니다.</div>
-            </div>
-        </div>
 
-        <!-- View 3: 대량 엑셀 소싱 모드 -->
+            <!-- ═══ G3 FIX: 카테고리 탐색기 토글 패널 ═══ -->
+            <div id="t1-cat-explorer-section" style="margin-bottom:16px;">
+                <div style="display:flex; gap:8px; margin-bottom:8px;">
+                    <button id="t1-cat-toggle-btn" onclick="t1ToggleCatExplorer()" style="flex:1; padding:12px 16px; border-radius:12px; border:1px solid rgba(59,130,246,0.2); background:linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08)); color:#94a3b8; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:all 0.2s;">
+                        <span style="font-size:16px;">📂</span>
+                        <span>카테고리 트렌드 탐색기</span>
+                        <span style="font-size:10px; background:rgba(59,130,246,0.15); color:#60a5fa; padding:2px 8px; border-radius:10px;">12대분류 · 2년 트렌드 · 예측</span>
+                        <span id="t1-cat-toggle-arrow" style="margin-left:auto; transition:transform 0.3s;">▼</span>
+                    </button>
+                    <button id="t1-forecast-toggle-btn" onclick="typeof t1ToggleForecast==='function'&&t1ToggleForecast()" style="padding:12px 20px; border-radius:12px; border:1px solid rgba(139,92,246,0.2); background:linear-gradient(135deg, rgba(139,92,246,0.08), rgba(59,130,246,0.08)); color:#94a3b8; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all 0.2s; white-space:nowrap;">
+                        <span style="font-size:16px;">🔮</span>
+                        <span>미래예측 상황판</span>
+                    </button>
+                </div>
+                <div id="t1-cat-explorer-panel" style="display:none; margin-top:12px; border:1px solid rgba(255,255,255,0.05); border-radius:12px; overflow:hidden; background:rgba(15,23,42,0.5);">
+                    <div style="display:flex; min-height:400px;">
+                        <!-- 좌: 카테고리 트리 -->
+                        <div style="width:220px; min-width:220px; border-right:1px solid rgba(255,255,255,0.05); overflow-y:auto; padding:8px; background:rgba(0,0,0,0.2);">
+                            <div id="cat-tree-container"></div>
+                        </div>
+                        <!-- 우: 분석 패널 -->
+                        <div style="flex:1; overflow-y:auto; padding:16px;">
+                            <div id="cat-analysis-panel">
+                                <div style="text-align:center; padding:60px 20px; color:#64748b;">
+                                    <div style="font-size:2rem; margin-bottom:8px;">📊</div>
+                                    <div style="font-size:14px; font-weight:600; color:#94a3b8; margin-bottom:8px;">카테고리를 선택하세요</div>
+                                    <div style="font-size:12px; line-height:1.6;">
+                                        좌측 12대분류를 클릭하면<br>
+                                        📈 2년 트렌드 차트 · 🔥 모멘텀 분석<br>
+                                        🛡️ 지속가치 점수 · 🚀 상승 예측 키워드를 확인합니다.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 네이버 시장 분석 및 도매 피드 결과가 컨테이너 내에서 동적으로 렌더링될 영역 -->
+            <div id="t1-search-results-area" style="display:none; flex-direction:column; gap:16px;">
+                <!-- 검색 결과 리스트 상단 전용 필터 탭 (Active State 일때만 보임) -->
+                <div class="t1-subtab-bar" id="t1-subtab-bar" style="display:none; margin-bottom:0;">
+                    <button class="t1-subtab active" data-mode="drop" onclick="typeof t1SetSourcingMode==='function'&&t1SetSourcingMode('drop')">🟢 위탁 소싱</button>
+                    <button class="t1-subtab" data-mode="bulk" onclick="typeof t1SetSourcingMode==='function'&&t1SetSourcingMode('bulk')">📦 사입 소싱</button>
+                </div>
+                
+                <div class="feed-filter-bar" id="t1-feed-filter-bar" style="display:none;">
+                    <button class="feed-filter active" onclick="typeof t1FeedSetFilter==='function'&&t1FeedSetFilter('ALL',this)">전체</button>
+                    <button class="feed-filter" onclick="typeof t1FeedSetFilter==='function'&&t1FeedSetFilter('소싱추천',this)" style="color:#10b981">소싱추천</button>
+                    <button class="feed-filter" onclick="typeof t1FeedSetFilter==='function'&&t1FeedSetFilter('지켜보기',this)" style="color:#f59e0b">지켜보기</button>
+                    <button class="feed-filter" onclick="typeof t1FeedSetFilter==='function'&&t1FeedSetFilter('급상승',this)">급상승</button>
+                    <button class="feed-filter" onclick="typeof t1FeedSetFilter==='function'&&t1FeedSetFilter('고마진',this)">고마진</button>
+                    <select class="feed-sort" onchange="typeof t1FeedSetSort==='function'&&t1FeedSetSort(this.value)" style="margin-left:auto;padding:3px 7px;border-radius:5px;border:1px solid rgba(255,255,255,0.05);background:rgba(22,25,32,0.6);color:#94a3b8;font-size:9px">
+                        <option value="margin_desc">마진 높은순</option>
+                        <option value="trend_desc">검색 급상승순</option>
+                        <option value="search_desc">검색량 많은순</option>
+                        <option value="price_asc">도매가 낮은순</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 상품 피드 및 트렌드 보드 전용 동적 렌더링 그리드 -->
+            <div id="t1-feed-grid" class="feed-grid" style="display:block;">
+                <div style="text-align:center;padding:40px;color:#64748b;font-size:12px;grid-column:1/-1">시스템 초기화 중...</div>
+            </div>
+
+            <!-- 페이지네이션 -->
+            <div id="t1-feed-pagination" class="feed-pagination"></div>
+
+        </div> <!-- /#t1-main-integrated-content -->
+
+        <!-- View 2: 수집 대기열 (Inbox) 모드 -->
         <div id="t1-main-bulk-content" style="display:none; flex-direction:column; gap:20px;">
             <div style="padding:40px; background:rgba(15,23,42,0.6); border-radius:16px; border:1px dashed rgba(255,255,255,0.1); text-align:center;">
-                <h2 style="font-size:24px; font-weight:800; color:#f1f5f9; margin-bottom:8px;">대량 소싱 중앙 센터</h2>
-                <div style="font-size:13px; color:#94a3b8; margin-bottom:30px;">수십 건의 리스트를 한 번에 도매꾹 API와 매칭합니다.</div>
+                <h2 style="font-size:24px; font-weight:800; color:#f1f5f9; margin-bottom:8px;">📥 수집 대기열 (Sourcing Inbox)</h2>
+                <div style="font-size:13px; color:#94a3b8; margin-bottom:30px;">소싱 클리퍼와 대량 엑셀 업로드로 수집된 후보군들을 모아보고, T2(마진검토)로 이관합니다.</div>
                 
                 <div style="display:flex; justify-content:center; gap:20px; max-width:800px; margin:0 auto;">
                     <!-- 엑셀/CSV 업로드 -->
@@ -305,10 +349,11 @@ function hideStudioOverlay() {
                     </div>
                 </div>
                 
-                <div style="margin-top:30px; display:flex; justify-content:center; gap:12px; max-width:600px; margin-left:auto; margin-right:auto;">
-                    <input type="text" id="t1-url-input" placeholder="도매처 상품 URL 1개 붙여넣기 (빠른 추출)..." style="flex:1; padding:16px; font-size:14px; border-radius:12px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.3); color:#fff;">
-                    <button onclick="typeof t1ExtractFromUrl==='function'&&t1ExtractFromUrl()" style="padding:0 24px; font-weight:700; border-radius:12px; background:#475569; color:#fff; border:none; cursor:pointer;">🔗 URL 추출</button>
-                    <button onclick="typeof t1ImportFromGoogleSheet==='function'&&t1ImportFromGoogleSheet()" style="padding:0 24px; font-weight:700; border-radius:12px; background:#059669; color:#fff; border:none; cursor:pointer;">📊 G-Sheet 연동</button>
+                <div style="margin-top:30px; display:flex; justify-content:center; gap:8px; max-width:700px; margin-left:auto; margin-right:auto;">
+                    <input type="text" id="t1-url-input" placeholder="도매처 상품 URL (빠른 추출)..." style="flex:1; padding:16px; font-size:14px; border-radius:12px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.3); color:#fff;">
+                    <button onclick="typeof t1ExtractFromUrl==='function'&&t1ExtractFromUrl()" style="padding:0 16px; font-weight:700; border-radius:12px; background:#475569; color:#fff; border:none; cursor:pointer; font-size:13px;">🔗 URL단건출</button>
+                    <button onclick="typeof t1ImportFromClipperClipboard==='function'&&t1ImportFromClipperClipboard()" style="padding:0 16px; font-weight:700; border-radius:12px; background:#3b82f6; color:#fff; border:none; cursor:pointer; font-size:13px; box-shadow:0 4px 10px rgba(59,130,246,0.3);">📋 클리퍼 대량붙여넣기</button>
+                    <button onclick="typeof t1ImportFromGoogleSheet==='function'&&t1ImportFromGoogleSheet()" style="padding:0 16px; font-weight:700; border-radius:12px; background:#059669; color:#fff; border:none; cursor:pointer; font-size:13px;">📊 G-Sheet(기존)</button>
                 </div>
                 
                 <!-- 벌크 결과 테이블 영역 -->
@@ -318,18 +363,23 @@ function hideStudioOverlay() {
 
     </div>
 
-    <!-- ═══ 우측 고정 패널: 소싱 장바구니 (신규) ═══ -->
+    <!-- ═══ 우측 고정 패널: 소싱 장바구니 (위젯 — 접기/펼치기) ═══ -->
     <div class="right-cart" id="t1-cart-panel">
-        <div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
-            <span>소싱 장바구니</span>
-            <span id="t1-cart-count" style="font-size:10px;color:#10b981;background:rgba(16,185,129,0.1);padding:2px 6px;border-radius:10px;font-weight:600">0</span>
+        <div id="t1-cart-header" onclick="t1ToggleCart()" style="font-size:13px;font-weight:700;color:#f1f5f9;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;border-radius:10px;transition:background 0.2s;margin:-12px -12px 0 -12px;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+            <span style="display:flex;align-items:center;gap:8px;">
+                <span id="t1-cart-toggle-icon" style="font-size:10px;transition:transform 0.3s ease;display:inline-block;transform:rotate(0deg);">▼</span>
+                <span>🛒 소싱 장바구니</span>
+            </span>
+            <span id="t1-cart-count" style="font-size:10px;color:#10b981;background:rgba(16,185,129,0.1);padding:2px 8px;border-radius:10px;font-weight:700;min-width:20px;text-align:center;transition:all 0.3s ease">0</span>
         </div>
         
-        <div id="t1-cart-items" style="display:flex;flex-direction:column;gap:8px;flex:1;overflow-y:auto;overflow-x:hidden;padding-right:4px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.08) transparent;">
-            <div style="text-align:center;padding:30px 10px;color:#64748b;font-size:11px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px dashed rgba(255,255,255,0.05)">장바구니가 비어있습니다.<br>상품의 픽담기 버튼을 눌러주세요.</div>
+        <div id="t1-cart-body" style="overflow:hidden;transition:max-height 0.35s cubic-bezier(0.4,0,0.2,1),opacity 0.25s ease;max-height:600px;opacity:1;margin-top:12px;">
+            <div id="t1-cart-items" style="display:flex;flex-direction:column;gap:8px;flex:1;overflow-y:auto;overflow-x:hidden;padding-right:4px;max-height:350px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.08) transparent;">
+                <div style="text-align:center;padding:30px 10px;color:#64748b;font-size:11px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px dashed rgba(255,255,255,0.05)">장바구니가 비어있습니다.<br>상품의 픽담기 버튼을 눌러주세요.</div>
+            </div>
+            
+            <button id="t1-cart-submit-btn" style="width:100%;margin-top:12px;padding:12px;border-radius:8px;border:none;background:#10b981;color:#111827;font-size:13px;font-weight:700;cursor:pointer;display:none;transition:background 0.2s">사입/위탁 진행</button>
         </div>
-        
-        <button id="t1-cart-submit-btn" style="width:100%;margin-top:12px;padding:12px;border-radius:8px;border:none;background:#10b981;color:#111827;font-size:13px;font-weight:700;cursor:pointer;display:none;transition:background 0.2s">사입/위탁 진행</button>
     </div>
 </div>
 
@@ -355,13 +405,27 @@ function hideStudioOverlay() {
     <!-- 대시보드 -->
     <div id="t2-dashboard"></div>
 
-    <!-- 대기열 (T1에서 넘어온 상품) -->
-    <div id="t2-pending-list" style="display:none;" class="t2-panel"></div>
-
-    <!-- 2단 레이아웃: 좌=시뮬레이터, 우=상품관리 -->
+    <!-- 3단 레이아웃: 좌=검토 대기열, 중=시뮬레이터, 우=상품리스트 -->
     <div class="t2-layout">
 
-        <!-- ═══ 좌측: 마진 시뮬레이터 ═══ -->
+        <!-- ═══ 좌측 (고정): 마진 검토 대기열 (Pending Queue) ═══ -->
+        <div id="t2-pending-list-panel" class="t2-panel" style="display:flex; flex-direction:column;">
+            <div class="t2-panel-header" style="background:rgba(59,130,246,0.1); color:#3b82f6; border-bottom:1px solid rgba(59,130,246,0.2);">
+                📥 마진 검토 대기열
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.05); line-height:1.4;">
+                T1 소싱처에서 이관된 상품을 선택하여<br>우측 시뮬레이터에서 마진을 확정하세요.
+            </div>
+            <div id="t2-pending-items" style="flex:1; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:8px;">
+                <!-- 동적 렌더링 -->
+                <div style="text-align:center;padding:60px 20px;color:var(--text-muted);font-size:12px;border:1px dashed rgba(255,255,255,0.1);border-radius:8px;">
+                    <div style="font-size:32px;margin-bottom:12px;opacity:0.5;">📥</div>
+                    T1 수집 대기열에서<br>상품을 이관해주세요.
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ 중앙: 마진 시뮬레이터 ═══ -->
         <div>
             <!-- 시뮬레이터 모드 전환 -->
             <div style="display:flex;gap:4px;margin-bottom:10px;">
@@ -385,7 +449,7 @@ function hideStudioOverlay() {
                         <input type="number" id="t2-cost" placeholder="0" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
                     </div>
 
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                         <div>
                             <label style="font-size:10px;color:var(--text-muted);">도매 배송비</label>
                             <input type="number" id="t2-supply-ship" value="3000" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
@@ -393,6 +457,10 @@ function hideStudioOverlay() {
                         <div>
                             <label style="font-size:10px;color:var(--text-muted);">마켓 배송비</label>
                             <input type="number" id="t2-market-ship" value="3000" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:10px;color:#f59e0b;font-weight:700;">광고비(필수)</label>
+                            <input type="number" id="t2-ad-cost" value="0" placeholder="0" style="width:100%;padding:6px 8px;border-radius:6px;border:1px dashed #f59e0b;background:rgba(245,158,11,0.05);color:var(--text);font-size:12px;">
                         </div>
                     </div>
 
@@ -473,8 +541,8 @@ function hideStudioOverlay() {
                     </div>
 
                     <div style="display:flex;gap:8px;">
-                        <button onclick="t2SaveFromSimulator()" style="flex:1;padding:12px;border-radius:8px;border:1px solid rgba(16,185,129,0.5);background:rgba(16,185,129,0.1);color:#10b981;font-size:13px;font-weight:700;cursor:pointer;">✅ 마진 저장</button>
-                        <button onclick="sendToStudioFromT2()" style="flex:2;padding:12px;border-radius:8px;border:none;background:var(--accent,#10b981);color:#0d0f14;font-size:13px;font-weight:700;cursor:pointer;">🎨 기획/상세페이지 생성</button>
+                        <button onclick="t2SaveFromSimulator()" style="flex:1;padding:12px;border-radius:8px;border:1px solid rgba(16,185,129,0.5);background:rgba(16,185,129,0.1);color:#10b981;font-size:13px;font-weight:700;cursor:pointer;">💾 장부 기록</button>
+                        <button onclick="sendToStudioFromT2()" style="flex:2;padding:12px;border-radius:8px;border:none;background:var(--accent,#10b981);color:#0d0f14;font-size:13px;font-weight:700;cursor:pointer;">🚀 소싱 확정 (T3 대기열로 이관)</button>
                     </div>
                 </div>
             </div>
@@ -513,17 +581,52 @@ function hideStudioOverlay() {
 
             <!-- 현장 사입 -->
             <div id="t2-sim-field" class="t2-panel" style="display:none;">
-                <div class="t2-panel-header">🏪 현장 사입 기록</div>
-                <div style="display:flex;flex-direction:column;gap:8px;">
-                    <div>
-                        <label style="font-size:10px;color:var(--text-muted);">현장 매입 단가</label>
-                        <input type="number" id="t2-field-price" placeholder="0" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                <div class="t2-panel-header">🏪 현장 사입 기록 (오프라인)</div>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">상호명 (매장명)</label>
+                            <input type="text" id="t2-field-vendor" placeholder="예: 평화시장 가동 1층" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">연락처 (폰/카톡)</label>
+                            <input type="text" id="t2-field-phone" placeholder="010-0000-0000" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
                     </div>
-                    <div>
-                        <label style="font-size:10px;color:var(--text-muted);">매입 수량</label>
-                        <input type="number" id="t2-field-qty" value="1" min="1" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                    
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">매입 단가(원)</label>
+                            <input type="number" id="t2-field-price" placeholder="0" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">매입 수량</label>
+                            <input type="number" id="t2-field-qty" value="1" min="1" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);">배송(퀵/택배)비</label>
+                            <input type="number" id="t2-field-shipping" value="0" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;">
+                        </div>
                     </div>
-                    <button onclick="document.getElementById('t2-cost').value=document.getElementById('t2-field-price').value;t2SetSimMode('consign');t2RecalcMargin();" style="width:100%;padding:8px;border-radius:6px;border:none;background:var(--accent);color:#0d0f14;font-size:11px;font-weight:700;cursor:pointer;">💰 마진 계산으로 이동</button>
+
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">📸 현장 사진 (제품, 영수증, 명함)</label>
+                        <div style="padding:16px;border:2px dashed rgba(16,185,129,0.5);border-radius:8px;background:rgba(16,185,129,0.05);text-align:center;cursor:pointer;position:relative;" onclick="document.getElementById('t2-field-photos').click()">
+                            <div style="font-size:24px;margin-bottom:8px;">📷</div>
+                            <div style="color:#10b981;font-size:12px;font-weight:700;">터치하여 사진 촬영 또는 갤러리 선택</div>
+                            <input type="file" id="t2-field-photos" accept="image/*" multiple capture="environment" style="display:none;" onchange="typeof t2HandleFieldPhotos==='function'&&t2HandleFieldPhotos(this.files)">
+                        </div>
+                        <div id="t2-field-photo-preview" style="display:flex;gap:8px;overflow-x:auto;margin-top:8px;scrollbar-width:none;"></div>
+                        <input type="hidden" id="t2-field-photo-urls" value="">
+                    </div>
+
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);">메모 (구매 조건 등)</label>
+                        <textarea id="t2-field-memo" placeholder="예: 10장 이상 도매가, 반품 불가" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;min-height:50px;resize:vertical;"></textarea>
+                    </div>
+
+                    <button onclick="typeof t2SubmitFieldSourcing==='function'&&t2SubmitFieldSourcing()" style="width:100%;padding:12px;border-radius:8px;border:none;background:var(--accent);color:#0d0f14;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(16,185,129,0.3);">🚀 장부에 현장 사입 기록 저장</button>
+                    <button onclick="document.getElementById('t2-cost').value=document.getElementById('t2-field-price').value;t2SetSimMode('consign');t2RecalcMargin();" style="width:100%;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;">단가만 마진 계산기로 복사</button>
                 </div>
             </div>
 
@@ -572,8 +675,14 @@ function hideStudioOverlay() {
         <!-- ═══ 우측: 상품 관리 ═══ -->
         <div>
             <!-- 툴바: 필터 + 뷰 전환 + 정렬 -->
+            <!-- [NEW] Track A/B 분리용 UI 신설 -->
+            <div class="t2-track-tabs" style="display:flex; gap:10px; margin-bottom:12px;">
+                <button class="t2-track-btn active" onclick="typeof t2SetTrack==='function'&&t2SetTrack('all')" style="flex:1; padding:8px 12px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:12px; cursor:pointer; font-weight:700; transition:all 0.2s; opacity:1;">🗂️ 전체 통합뷰</button>
+                <button class="t2-track-btn" onclick="typeof t2SetTrack==='function'&&t2SetTrack('trackA')" style="flex:1; padding:8px 12px; border-radius:6px; border:1px solid rgba(168,85,247,0.3); background:rgba(168,85,247,0.05); color:#a855f7; font-size:12px; cursor:pointer; font-weight:700; transition:all 0.2s; opacity:0.6;">📊 경쟁사 벤치마킹 (Tr.A)</button>
+                <button class="t2-track-btn" onclick="typeof t2SetTrack==='function'&&t2SetTrack('trackB')" style="flex:1; padding:8px 12px; border-radius:6px; border:1px solid rgba(16,185,129,0.3); background:rgba(16,185,129,0.05); color:#10b981; font-size:12px; cursor:pointer; font-weight:700; transition:all 0.2s; opacity:0.6;">🛒 내 소싱 수집함 (Tr.B)</button>
+            </div>
             <div class="t2-toolbar">
-                <button class="t2-filter-btn active" data-status="all" onclick="t2SetFilter('all')">전체</button>
+                <button class="t2-filter-btn active" data-status="all" onclick="t2SetFilter('all')">상위전체</button>
                 <button class="t2-filter-btn" data-status="sourcing" onclick="t2SetFilter('sourcing')">🔍 소싱중</button>
                 <button class="t2-filter-btn" data-status="stocked" onclick="t2SetFilter('stocked')">📦 입고</button>
                 <button class="t2-filter-btn" data-status="selling" onclick="t2SetFilter('selling')">🟢 판매중</button>
@@ -604,6 +713,62 @@ function hideStudioOverlay() {
      T3 상세페이지 스튜디오 HTML 템플릿
      ═══════════════════════════════════════════════════ -->
 
+<!-- ═══ T3 서브탭: AI 생성기 / 상세페이지 빌더 ═══ -->
+<style>
+.t3-subtab-bar { display:flex; gap:4px; padding:0 20px; background:rgba(13,17,23,0.95); border-bottom:1px solid rgba(255,255,255,0.08); position:sticky; top:102px; z-index:95; backdrop-filter:blur(12px); }
+.t3-sub-tab { padding:14px 20px; border:none; background:transparent; color:#64748b; font-size:14px; font-weight:700; cursor:pointer; transition:0.2s; border-bottom:3px solid transparent; }
+.t3-sub-tab:hover { color:#f8fafc; }
+.t3-sub-tab.active { color:#a78bfa; border-bottom:3px solid #a78bfa; background:rgba(167,139,250,0.05); }
+/* T3 Builder CSS — AI탭과 통일된 380px/1fr 2단 레이아웃 */
+.t3b-layout { display:grid; grid-template-columns:380px 1fr; gap:20px; }
+@media(max-width:1000px) { .t3b-layout { grid-template-columns:1fr; } }
+.t3b-panel { background:rgba(22,25,32,0.7); backdrop-filter:blur(4px); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; margin-bottom:16px; transition:border-color 0.2s; }
+.t3b-panel:hover { border-color:rgba(255,255,255,0.1); }
+/* ── 섹션 아이템 + 아코디언 ── */
+.t3b-section-wrapper { margin-bottom:6px; }
+.t3b-section-item { display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:8px; background:rgba(22,25,32,0.6); border:1px solid rgba(255,255,255,0.05); cursor:grab; transition:all 0.15s; }
+.t3b-section-item:hover { background:rgba(59,130,246,0.08); border-color:rgba(59,130,246,0.2); }
+.t3b-section-item.editing { background:rgba(167,139,250,0.1); border-color:rgba(167,139,250,0.3); border-radius:8px 8px 0 0; }
+.t3b-accordion-body { background:rgba(30,34,48,0.6); border:1px solid rgba(167,139,250,0.2); border-top:none; border-radius:0 0 8px 8px; padding:12px; animation:t3bSlideDown 0.2s ease; }
+@keyframes t3bSlideDown { from { opacity:0; max-height:0; padding:0 12px; } to { opacity:1; max-height:500px; padding:12px; } }
+.t3b-drag-handle { color:#475569; font-size:14px; cursor:grab; user-select:none; }
+.t3b-sec-icon { font-size:16px; }
+.t3b-sec-name { font-size:12px; font-weight:600; color:#e2e8f0; flex:1; }
+.t3b-sec-actions { display:flex; gap:4px; }
+.t3b-sm-btn { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:4px 8px; color:#94a3b8; font-size:10px; cursor:pointer; transition:0.15s; }
+.t3b-sm-btn:hover { background:rgba(255,255,255,0.1); color:#f1f5f9; }
+.t3b-sm-btn-danger:hover { background:rgba(239,68,68,0.15); color:#ef4444; }
+.t3b-cat-btn { padding:8px 14px; border:1px solid rgba(255,255,255,0.08); border-radius:8px; background:rgba(22,25,32,0.6); color:#94a3b8; font-size:11px; font-weight:600; cursor:pointer; transition:0.15s; }
+.t3b-cat-btn.active { background:rgba(167,139,250,0.15); border-color:#a78bfa; color:#a78bfa; }
+.t3b-cat-btn:hover:not(.active) { border-color:rgba(255,255,255,0.15); color:#e2e8f0; }
+.t3b-field { margin-bottom:10px; }
+.t3b-field label { display:block; font-size:11px; font-weight:600; color:#94a3b8; margin-bottom:4px; }
+.t3b-field input, .t3b-field select, .t3b-field textarea { width:100%; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:rgba(30,34,48,0.8); color:#e2e8f0; font-size:12px; transition:border-color 0.2s,box-shadow 0.2s; font-family:inherit; }
+.t3b-field input:focus, .t3b-field select:focus, .t3b-field textarea:focus { border-color:rgba(167,139,250,0.4); box-shadow:0 0 0 3px rgba(167,139,250,0.08); outline:none; }
+.t3b-field textarea { min-height:60px; resize:vertical; }
+.t3b-apply-btn { width:100%; padding:8px; border-radius:8px; border:none; background:rgba(167,139,250,0.2); color:#a78bfa; font-size:11px; font-weight:700; cursor:pointer; transition:0.2s; margin-top:4px; }
+.t3b-apply-btn:hover { background:rgba(167,139,250,0.3); }
+/* 미리보기: AI탭 t5-preview-wrap과 동일 패턴 */
+.t3b-preview-wrap { border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.06); background:#fff; }
+.t3b-preview-header { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:rgba(22,25,32,0.9); border-bottom:1px solid rgba(255,255,255,0.06); }
+.t3b-preview-header span { font-size:12px; font-weight:500; color:#e2e8f0; }
+.t3b-preview-header .t3b-char-hint { font-size:10px; color:#64748b; }
+#t3b-preview-frame { width:100%; min-height:850px; border:none; background:#fff; display:block; margin:0 auto; }
+.t3b-toolbar { display:flex; gap:8px; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.06); background:rgba(22,25,32,0.9); }
+.t3b-toolbar button { flex:1; padding:10px; border-radius:8px; border:none; font-size:12px; font-weight:700; cursor:pointer; transition:0.2s; }
+.t3b-dl-png { background:#10b981; color:#0d0f14; }
+.t3b-dl-png:hover { background:#059669; }
+.t3b-dl-html { background:rgba(59,130,246,0.2); color:#3b82f6; }
+.t3b-dl-html:hover { background:rgba(59,130,246,0.3); }
+</style>
+
+<div class="t3-subtab-bar">
+    <button class="t3-sub-tab active" data-tab="ai" onclick="t3SwitchBuilderTab('ai')">🤖 AI 상세페이지</button>
+    <button class="t3-sub-tab" data-tab="builder" onclick="t3SwitchBuilderTab('builder')">🧩 상세페이지 빌더 <span style="font-size:9px;background:rgba(167,139,250,0.15);color:#a78bfa;padding:1px 6px;border-radius:8px;margin-left:4px;">NEW</span></button>
+</div>
+
+<!-- ═══ AI 상세페이지 (기존) ═══ -->
+<div id="t3-ai-panel">
 <div style="max-width:1400px;margin:0 auto;padding:16px 0;">
 
     <!-- 대기열 패널 (T1 대량소싱 연동) -->
@@ -790,6 +955,77 @@ function hideStudioOverlay() {
 
     </div>
 </div>
+</div> <!-- /t3-ai-panel -->
+
+<!-- ═══ 상세페이지 빌더 (NEW) ═══ -->
+<div id="t3-builder-panel" style="display:none;">
+<div id="t3-builder-container" style="max-width:1400px;margin:0 auto;padding:16px 0;">
+    
+    <!-- 카테고리 프리셋 선택 -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <button class="t3b-cat-btn active" data-cat="clean" onclick="t3LoadPreset('clean')">✨ 깔끔</button>
+        <button class="t3b-cat-btn" data-cat="premium" onclick="t3LoadPreset('premium')">💎 프리미엄</button>
+        <button class="t3b-cat-btn" data-cat="trendy" onclick="t3LoadPreset('trendy')">🔥 트렌디</button>
+        <button class="t3b-cat-btn" data-cat="minimal" onclick="t3LoadPreset('minimal')">🤍 미니멀</button>
+        <button class="t3b-cat-btn" data-cat="tech" onclick="t3LoadPreset('tech')">💻 테크</button>
+        <button class="t3b-cat-btn" data-cat="nature" onclick="t3LoadPreset('nature')">🌿 내추럴</button>
+        <button class="t3b-cat-btn" data-cat="kids" onclick="t3LoadPreset('kids')">🧸 키즈</button>
+        <button class="t3b-cat-btn" data-cat="food" onclick="t3LoadPreset('food')">🍽️ 푸드</button>
+        <div style="margin-left:auto;display:flex;gap:6px;">
+            <button onclick="t3ImportFromT2()" class="t3b-sm-btn" style="padding:8px 12px;font-size:11px;">📥 T2 데이터 가져오기</button>
+        </div>
+    </div>
+    
+    <!-- 2단 레이아웃: 좌=섹션(아코디언) / 우=미리보기 -->
+    <div class="t3b-layout">
+        
+        <!-- ═══ 좌측: 섹션 구성 (아코디언 편집) ═══ -->
+        <div>
+            <div class="t3b-panel">
+                <div style="font-size:14px;font-weight:600;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:space-between;">
+                    <span>📑 섹션 구성</span>
+                    <div style="position:relative;">
+                        <button onclick="t3ToggleAddMenu()" class="t3b-sm-btn" style="font-size:11px;">+ 추가</button>
+                        <div id="t3b-add-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:#1e293b;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:6px;z-index:100;min-width:180px;box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+                            <div onclick="t3AddSection('hero');t3ToggleAddMenu()" style="padding:8px 10px;border-radius:6px;cursor:pointer;font-size:11px;color:#e2e8f0;" onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background=''">🎯 히어로 배너</div>
+                            <div onclick="t3AddSection('socialProof');t3ToggleAddMenu()" style="padding:8px 10px;border-radius:6px;cursor:pointer;font-size:11px;color:#e2e8f0;" onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background=''">⭐ 소셜프루프</div>
+                            <div onclick="t3AddSection('features');t3ToggleAddMenu()" style="padding:8px 10px;border-radius:6px;cursor:pointer;font-size:11px;color:#e2e8f0;" onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background=''">✨ 특장점 카드</div>
+                            <div onclick="t3AddSection('comparison');t3ToggleAddMenu()" style="padding:8px 10px;border-radius:6px;cursor:pointer;font-size:11px;color:#e2e8f0;" onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background=''">⚖️ 비교표</div>
+                            <div onclick="t3AddSection('productImg');t3ToggleAddMenu()" style="padding:8px 10px;border-radius:6px;cursor:pointer;font-size:11px;color:#e2e8f0;" onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background=''">📷 상품 이미지</div>
+                            <div onclick="t3AddSection('specTable');t3ToggleAddMenu()" style="padding:8px 10px;border-radius:6px;cursor:pointer;font-size:11px;color:#e2e8f0;" onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background=''">📋 스펙/사이즈표</div>
+                            <div onclick="t3AddSection('howTo');t3ToggleAddMenu()" style="padding:8px 10px;border-radius:6px;cursor:pointer;font-size:11px;color:#e2e8f0;" onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background=''">💡 사용법</div>
+                            <div onclick="t3AddSection('bottomInfo');t3ToggleAddMenu()" style="padding:8px 10px;border-radius:6px;cursor:pointer;font-size:11px;color:#e2e8f0;" onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background=''">📦 하단 정보</div>
+                        </div>
+                    </div>
+                </div>
+                <div id="t3b-section-list">
+                    <div style="text-align:center;padding:30px 20px;color:#64748b;font-size:12px;">카테고리를 선택하면<br>기본 섹션이 자동 로드됩니다</div>
+                </div>
+            </div>
+
+            <!-- 다운로드 버튼 -->
+            <div class="t3b-toolbar" style="border-radius:12px;">
+                <button class="t3b-dl-png" onclick="t3DownloadPNG()">📸 PNG 다운로드</button>
+                <button class="t3b-dl-html" onclick="t3DownloadHTML()">💾 HTML 다운로드</button>
+            </div>
+            <div id="t3b-download-status" style="display:none;padding:8px 16px;font-size:11px;color:#10b981;text-align:center;"></div>
+        </div>
+        
+        <!-- ═══ 우측: 미리보기 (AI탭과 동일 패턴) ═══ -->
+        <div>
+            <div class="t3b-preview-wrap">
+                <div class="t3b-preview-header">
+                    <span>👁️ 실시간 미리보기</span>
+                    <span class="t3b-char-hint">860px 기준</span>
+                </div>
+                <iframe id="t3b-preview-frame" sandbox="allow-same-origin"></iframe>
+            </div>
+        </div>
+        
+    </div>
+</div>
+</div> <!-- /t3-builder-panel -->
+
 </div> <!-- /#page-studio -->
 
         <div class="page" id="page-oms">
@@ -1038,7 +1274,7 @@ function hideStudioOverlay() {
 <script src="js/crm-db.js"></script>
 
 <!-- ★ Phase 3: AI 어시스턴트 플로팅 위젯 -->
-<div id="ai-agent-widget" style="display:none;flex-direction:column;position:fixed;bottom:80px;right:20px;width:380px;max-height:520px;background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);border-radius:20px;border:1px solid rgba(255,255,255,0.6);box-shadow:0 20px 60px rgba(0,0,0,0.15);z-index:9500;overflow:hidden;">
+<div id="ai-agent-widget" style="display:none;flex-direction:column;position:fixed;top:130px;right:20px;width:380px;max-height:520px;background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);border-radius:20px;border:1px solid rgba(255,255,255,0.6);box-shadow:0 20px 60px rgba(0,0,0,0.15);z-index:9500;overflow:hidden;">
     <div style="padding:14px 18px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;display:flex;align-items:center;justify-content:space-between;">
         <span style="font-weight:800;font-size:14px;">🤖 소싱 AI 어시스턴트</span>
         <button onclick="AIAgent.toggle()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:16px;">✕</button>
@@ -1049,7 +1285,33 @@ function hideStudioOverlay() {
         <button onclick="AIAgent.send()" style="padding:8px 14px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px;">✈</button>
     </div>
 </div>
-<button onclick="AIAgent.toggle()" style="position:fixed;bottom:80px;right:20px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;border:none;cursor:pointer;font-size:24px;box-shadow:0 6px 20px rgba(99,102,241,0.4);z-index:9400;transition:all 0.3s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">🤖</button>
+<button class="floating-widget-btn" id="ai-agent-toggle-btn" onclick="AIAgent.toggle()" style="position:fixed;top:70px;right:20px;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;border:none;cursor:pointer;font-size:20px;box-shadow:0 6px 20px rgba(99,102,241,0.4);z-index:9400;transition:all 0.3s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">🤖</button>
+
+<script>
+// 플로팅 위젯 전체 숨김/표시 토글 로직
+let isFabVisible = true;
+function toggleFloatingWidgets() {
+    isFabVisible = !isFabVisible;
+    const aiBtn = document.getElementById('ai-agent-toggle-btn');
+    const sysBtn = document.getElementById('sys-console-fab');
+    const aiWidget = document.getElementById('ai-agent-widget');
+    const sysConsole = document.getElementById('sys-console');
+    const toggleBtn = document.getElementById('fab-toggle-btn');
+    
+    if (aiBtn) aiBtn.style.display = isFabVisible ? 'block' : 'none';
+    if (sysBtn) sysBtn.style.display = isFabVisible ? 'flex' : 'none';
+    
+    if (!isFabVisible) {
+        if (aiWidget) aiWidget.style.display = 'none';
+        if (sysConsole) sysConsole.style.display = 'none';
+        if (typeof AIAgent !== 'undefined') AIAgent.isOpen = false;
+        if (typeof SystemLogger !== 'undefined') SystemLogger._visible = false;
+        if (toggleBtn) toggleBtn.style.opacity = '0.4';
+    } else {
+        if (toggleBtn) toggleBtn.style.opacity = '1';
+    }
+}
+</script>
 <script src="js/core/app-init.js"></script>
 <script src="js/category-explorer.js"></script>
 <script src="js/coupang-api.js"></script>

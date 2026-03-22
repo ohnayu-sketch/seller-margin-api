@@ -64,7 +64,8 @@ function sendToStudio(itemData) {
         price: parseInt(itemData.lprice || itemData.price || 0, 10),
         wholesale_price: parseInt(itemData._wsPrice || itemData.wholesalePrice || 0, 10),
         keyword: itemData.keyword || '',
-        source: itemData.source_type || 'naver'
+        source: itemData.source_type || 'naver',
+        sourceText: itemData.sourceText || '' // 상세 레이아웃 구조 분석용 메타 텍스트
     };
     if (typeof showTab === 'function') showTab('studio');
     AppEventBus.emit('PRODUCT_TO_STUDIO', studioData);

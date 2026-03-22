@@ -224,3 +224,23 @@ a.dt-price:hover{opacity:0.8;text-decoration:none}
 .t1-subtab:hover{color:#e2e8f0;background:rgba(255,255,255,0.04)}
 .t1-subtab.active[data-mode="drop"]{background:rgba(16,185,129,0.12);color:#10b981;box-shadow:0 1px 4px rgba(16,185,129,0.15)}
 .t1-subtab.active[data-mode="bulk"]{background:rgba(59,130,246,0.12);color:#3b82f6;box-shadow:0 1px 4px rgba(59,130,246,0.15)}
+
+/* ═══ 사이드 패널(모바일) 전용 카드 컴팩트 레이아웃 ═══ */
+@media (max-width: 600px) {
+    /* 상품 카드 구조 세로로 변경 */
+    .pc { flex-direction: column; align-items: stretch; padding: 12px; gap: 12px; }
+    
+    /* 썸네일과 기본 정보 나란히 배치 */
+    .pc-info-main { width: 100%; }
+    
+    /* 우측 액션/마진 영역 하단에 전체 너비로 전개 */
+    .pc-info-side { width: 100%; border-left: none; border-top: 1px dashed rgba(255,255,255,0.08); padding-left: 0; padding-top: 10px; align-items: stretch; }
+    
+    /* 네이버 마진 뱃지 및 액션 버튼 크기 조정 */
+    .n-benefits { justify-content: space-between; padding: 8px 12px; }
+    .n-actions-list { margin-top: 8px; }
+    
+    /* 상단 시장 분석 패널 반응형 */
+    .mp-prices { grid-template-columns: 1fr; gap: 8px; }
+    .dt-zone { grid-template-columns: 1fr; }
+}

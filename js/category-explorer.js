@@ -828,3 +828,28 @@ function renderTrendChart(trend, name) {
 
 /* ═══════════════════ 유틸리티 ═══════════════════ */
 function formatDate(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
+/* ═══════════════════ G3 FIX: 토글 UI ═══════════════════ */
+let _catExplorerOpen = false;
+function t1ToggleCatExplorer() {
+  const panel = document.getElementById('t1-cat-explorer-panel');
+  const arrow = document.getElementById('t1-cat-toggle-arrow');
+  const btn = document.getElementById('t1-cat-toggle-btn');
+  if (!panel) return;
+
+  _catExplorerOpen = !_catExplorerOpen;
+  panel.style.display = _catExplorerOpen ? 'block' : 'none';
+  if (arrow) arrow.style.transform = _catExplorerOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+  if (btn) {
+    btn.style.borderColor = _catExplorerOpen ? 'rgba(59,130,246,0.5)' : 'rgba(59,130,246,0.2)';
+    btn.style.background = _catExplorerOpen
+      ? 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(139,92,246,0.15))'
+      : 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))';
+  }
+
+  // 최초 오픈 시 트리 렌더
+  if (_catExplorerOpen) {
+    const c = document.getElementById('cat-tree-container');
+    if (c && !c.innerHTML.trim()) renderCatTree();
+  }
+}
