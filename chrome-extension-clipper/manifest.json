@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Seller Sourcing Clipper",
+  "version": "2.0",
+  "description": "스마트스토어, 쿠팡, 도매매, 1688 상품의 데이터를 1초 만에 브라우저에서 추출하여 소싱 대시보드로 보냅니다.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "sidePanel"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "소싱 클리퍼 열기"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "all_frames": true,
+      "css": ["hover.css"],
+      "js": ["content.js"]
+    }
+  ]
+}
